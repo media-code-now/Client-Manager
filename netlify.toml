@@ -1,0 +1,12 @@
+[build]
+  publish = ".next"
+  command = "chmod +x scripts/build-with-env-check.sh && scripts/build-with-env-check.sh"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[context.production.environment]
+  NODE_ENV = "production"
