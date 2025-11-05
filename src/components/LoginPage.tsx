@@ -61,8 +61,7 @@ export default function LoginPage() {
       }
 
       // Call the backend authentication API
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
-      const response = await fetch(`${API_URL}/auth/login`, {
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
