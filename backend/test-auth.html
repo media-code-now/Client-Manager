@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Auth Backend Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .success {
+            border-color: #28a745;
+            background-color: #d4edda;
+        }
+        .error {
+            border-color: #dc3545;
+            background-color: #f8d7da;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 CRM Auth Backend Test</h1>
+    
+    <div class="container">
+        <h2>Health Check</h2>
+        <button onclick="testHealth()">Test Health Endpoint</button>
+        <div id="healthResult" class="result"></div>
+    </div>
+
+    <div class="container">
+        <h2>User Registration</h2>
+        <input type="text" id="regName" placeholder="Name" value="Test User">
+        <input type="email" id="regEmail" placeholder="Email" value="test@example.com">
+        <input type="password" id="regPassword" placeholder="Password" value="password123">
+        <button onclick="testRegister()">Register User</button>
+        <div id="registerResult" class="result"></div>
+    </div>
+
+    <div class="container">
+        <h2>User Login</h2>
+        <input type="email" id="loginEmail" placeholder="Email" value="test@example.com">
+        <input type="password" id="loginPassword" placeholder="Password" value="password123">
+        <button onclick="testLogin()">Login User</button>
+        <div id="loginResult" class="result"></div>
+    </div>
+
+    <div class="container">
+        <h2>Token Verification</h2>
+        <input type="text" id="token" placeholder="JWT Token (from login response)">
+        <button onclick="testVerify()">Verify Token</button>
+        <div id="verifyResult" class="result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5001';
+
+        async function makeRequest(url, options = {}) {
+            try {
+                const response = await fetch(url, {
+                    ...options,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    }
+                });
+                
+                const text = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch {
+                    data = text;
+                }
+                
+                return {
+                    status: response.status,
+                    statusText: response.statusText,
+                    data: data
+                };
+            } catch (error) {
+                return {
+                    error: error.message
+                };
+            }
+        }
+
+        function displayResult(elementId, result, isSuccess = true) {
+            const element = document.getElementById(elementId);
+            element.textContent = JSON.stringify(result, null, 2);
+            element.className = `result ${isSuccess ? 'success' : 'error'}`;
+        }
+
+        async function testHealth() {
+            const result = await makeRequest(`${API_BASE}/health`);
+            displayResult('healthResult', result, !result.error);
+        }
+
+        async function testRegister() {
+            const name = document.getElementById('regName').value;
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPassword').value;
+
+            const result = await makeRequest(`${API_BASE}/auth/register`, {
+                method: 'POST',
+                body: JSON.stringify({ name, email, password })
+            });
+            
+            displayResult('registerResult', result, !result.error && result.status < 400);
+        }
+
+        async function testLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            const result = await makeRequest(`${API_BASE}/auth/login`, {
+                method: 'POST',
+                body: JSON.stringify({ email, password })
+            });
+            
+            displayResult('loginResult', result, !result.error && result.status < 400);
+            
+            // Auto-fill token if login successful
+            if (result.data && result.data.token) {
+                document.getElementById('token').value = result.data.token;
+            }
+        }
+
+        async function testVerify() {
+            const token = document.getElementById('token').value;
+
+            const result = await makeRequest(`${API_BASE}/auth/verify`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            displayResult('verifyResult', result, !result.error && result.status < 400);
+        }
+
+        // Test health on page load
+        window.addEventListener('load', testHealth);
+    </script>
+</body>
+</html>
