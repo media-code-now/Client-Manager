@@ -24,9 +24,10 @@ import {
 } from "@heroicons/react/24/outline";
 import { CheckCircleIcon } from "@heroicons/react/24/solid";
 import type { FC } from "react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { ThemeToggle } from "./ThemeToggle";
 import { useTheme } from "./ThemeProvider";
+import { getAccessToken } from "../utils/auth";
 
 type ClientStatus = "Active" | "On hold" | "Archived";
 type TaskStatus = "Open" | "In progress" | "Done";
@@ -37,8 +38,13 @@ type Client = {
   name: string;
   company?: string;
   status: ClientStatus;
+  email?: string;
+  phone?: string;
   tags?: string[];
   notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  lastActivityAt: string;
 };
 
 type Task = {
@@ -181,36 +187,7 @@ const mockUserProfile: UserProfile = {
   marketingEmails: false,
 };
 
-const mockClients: Client[] = [
-  {
-    id: "client-1",
-    name: "Olivia Martin",
-    company: "Northwind Co.",
-    status: "Active",
-    tags: ["VIP", "Legal"],
-  },
-  {
-    id: "client-2",
-    name: "Jackson Lee",
-    company: "Aperture Labs",
-    status: "On hold",
-    tags: ["Finance"],
-  },
-  {
-    id: "client-3",
-    name: "Mia Thompson",
-    company: "Brightside Studio",
-    status: "Active",
-    tags: ["Design", "Partner"],
-  },
-  {
-    id: "client-4",
-    name: "Ava Chen",
-    company: "Orbit Analytics",
-    status: "Active",
-    tags: ["Onboarding"],
-  },
-];
+// Client data is now fetched from the API
 
 const mockTasks: Task[] = [
   {
@@ -282,13 +259,14 @@ const iosMotion = {
 
 const DashboardLayout: FC = () => {
   const { theme, setTheme } = useTheme();
-  const [selectedClientId, setSelectedClientId] = useState<string>(mockClients[0]?.id ?? "");
+  const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [activeSection, setActiveSection] = useState<"overview" | "tasks" | "credentials" | "activity">(
     "overview"
   );
   const [activeNavItem, setActiveNavItem] = useState<string>("Dashboard");
   const [showAddClientModal, setShowAddClientModal] = useState<boolean>(false);
-  const [clients, setClients] = useState<Client[]>(mockClients);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [isLoadingClients, setIsLoadingClients] = useState<boolean>(true);
   const [clientView, setClientView] = useState<"list" | "detail">("list");
   const [tasks, setTasks] = useState<Task[]>(mockTasks);
   const [credentials, setCredentials] = useState<Credential[]>(mockCredentials);
@@ -311,6 +289,48 @@ const DashboardLayout: FC = () => {
   const [showChangePasswordModal, setShowChangePasswordModal] = useState<boolean>(false);
   const [appearancePreferences, setAppearancePreferences] = useState<AppearancePreferences>(mockAppearancePreferences);
   const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(mockNotificationPreferences);
+
+  // Fetch clients from API
+  const fetchClients = async () => {
+    try {
+      setIsLoadingClients(true);
+      const token = getAccessToken();
+      
+      if (!token) {
+        console.error('No access token found');
+        return;
+      }
+
+      const response = await fetch('/api/clients', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.clients) {
+          setClients(data.clients);
+          // Set first client as selected if none selected
+          if (data.clients.length > 0 && !selectedClientId) {
+            setSelectedClientId(data.clients[0].id);
+          }
+        }
+      } else {
+        console.error('Failed to fetch clients:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+    } finally {
+      setIsLoadingClients(false);
+    }
+  };
+
+  // Fetch clients on component mount
+  useEffect(() => {
+    fetchClients();
+  }, []);
 
   const navItems = [
     { label: "Dashboard", icon: HomeIcon },
@@ -357,7 +377,7 @@ const DashboardLayout: FC = () => {
     () => [
       {
         label: "Total clients",
-        value: mockClients.length,
+        value: clients.length,
         icon: UserGroupIcon,
       },
       {
@@ -376,7 +396,7 @@ const DashboardLayout: FC = () => {
         icon: ShieldCheckIcon,
       },
     ],
-    [overdueCount, openTasks.length]
+    [clients.length, overdueCount, openTasks.length]
   );
 
   const todayLabel = (dateIso?: string) => {
@@ -711,10 +731,15 @@ const DashboardLayout: FC = () => {
     );
   };
 
-  const handleAddClient = (newClient: Omit<Client, 'id'>) => {
+  const handleAddClient = async (newClientData: Omit<Client, 'id' | 'createdAt' | 'updatedAt' | 'lastActivityAt'>) => {
+    // For now, just add to local state - in a full implementation, this would call an API
+    const now = new Date().toISOString();
     const clientWithId: Client = {
-      ...newClient,
+      ...newClientData,
       id: `client-${Date.now()}`, // Simple ID generation
+      createdAt: now,
+      updatedAt: now,
+      lastActivityAt: now,
     };
     setClients(prev => [...prev, clientWithId]);
     setShowAddClientModal(false);
@@ -3193,7 +3218,7 @@ const DashboardLayout: FC = () => {
                       </p>
                     )}
                     {todaysTasks.map((task) => {
-                      const client = mockClients.find((c) => c.id === task.clientId);
+                      const client = clients.find((c) => c.id === task.clientId);
                       const isCompleted = task.status === "Done";
                       return (
                         <div
@@ -3263,7 +3288,7 @@ const DashboardLayout: FC = () => {
                     </button>
                   </div>
                   <div className="mt-4 space-y-4">
-                    {mockClients.map((client) => (
+                    {clients.map((client) => (
                       <article
                         key={client.id}
                         onClick={() => {
