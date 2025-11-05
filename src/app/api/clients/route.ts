@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { Client } from 'pg';
+import { getDatabaseUrl } from '../../../utils/database';
 
 interface DecodedToken {
   id: number;
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
 
     // Connect to database
     const client = new Client({
-      connectionString: process.env.DATABASE_URL
+      connectionString: getDatabaseUrl()
     });
     
     await client.connect();

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { Client } from 'pg';
+import { getDatabaseUrl } from '../../../../utils/database';
 
 interface LoginRequest {
   email: string;
@@ -29,9 +30,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Connect to database
-    const dbUrl = process.env.DATABASE_URL;
-    if (!dbUrl) {
-      console.error('DATABASE_URL environment variable not set');
+    let dbUrl: string;
+    try {
+      dbUrl = getDatabaseUrl();
+    } catch (error) {
+      console.error('Database configuration error:', error);
       return NextResponse.json(
         { success: false, error: 'Server configuration error' },
         { status: 500 }
