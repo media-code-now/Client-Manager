@@ -249,19 +249,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Demo Credentials */}
-          <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
-            <p className="text-xs text-slate-500 dark:text-slate-400 text-center mb-3">
-              Demo credentials for testing:
-            </p>
-            <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-3 text-xs font-mono">
-              <div className="text-slate-600 dark:text-slate-400">
-                <div>Email: admin@crm.local</div>
-                <div>Password: admin_password_2025_secure!</div>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Footer */}
