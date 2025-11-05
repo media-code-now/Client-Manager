@@ -301,6 +301,8 @@ const DashboardLayout: FC = () => {
         return;
       }
 
+      console.log('Fetching clients with token:', token.substring(0, 10) + '...');
+
       const response = await fetch('/api/clients', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -308,17 +310,25 @@ const DashboardLayout: FC = () => {
         },
       });
 
+      console.log('Clients API response status:', response.status);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('Clients API data:', data);
+        
         if (data.success && data.clients) {
+          console.log('Setting clients:', data.clients.length, 'clients found');
           setClients(data.clients);
           // Set first client as selected if none selected
           if (data.clients.length > 0 && !selectedClientId) {
             setSelectedClientId(data.clients[0].id);
           }
+        } else {
+          console.error('API returned success=false or no clients:', data);
         }
       } else {
-        console.error('Failed to fetch clients:', response.statusText);
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Failed to fetch clients:', response.status, response.statusText, errorData);
       }
     } catch (error) {
       console.error('Error fetching clients:', error);

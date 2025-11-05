@@ -14,10 +14,13 @@ interface DecodedToken {
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('Clients API called');
+    
     // Get authorization header
     const authHeader = request.headers.get('authorization');
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('No auth header or invalid format:', authHeader?.substring(0, 20));
       return NextResponse.json(
         { success: false, error: 'Authorization token required' },
         { status: 401 }
@@ -28,6 +31,7 @@ export async function GET(request: NextRequest) {
     const jwtSecret = process.env.JWT_SECRET;
 
     if (!jwtSecret) {
+      console.log('JWT_SECRET not found');
       return NextResponse.json(
         { success: false, error: 'Server configuration error' },
         { status: 500 }
@@ -38,6 +42,7 @@ export async function GET(request: NextRequest) {
     let decoded: DecodedToken;
     try {
       decoded = jwt.verify(token, jwtSecret) as DecodedToken;
+      console.log('JWT verified for user:', decoded.email);
     } catch (error) {
       return NextResponse.json(
         { success: false, error: 'Invalid or expired token' },
@@ -72,6 +77,8 @@ export async function GET(request: NextRequest) {
 
     const result = await client.query(clientsQuery);
     await client.end();
+
+    console.log('Clients query returned:', result.rows.length, 'clients');
 
     return NextResponse.json({
       success: true,
