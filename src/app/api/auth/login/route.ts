@@ -29,11 +29,28 @@ export async function POST(request: NextRequest) {
     }
 
     // Connect to database
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) {
+      console.error('DATABASE_URL environment variable not set');
+      return NextResponse.json(
+        { success: false, error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
+
     const client = new Client({
-      connectionString: process.env.DATABASE_URL
+      connectionString: dbUrl
     });
     
-    await client.connect();
+    try {
+      await client.connect();
+    } catch (dbError) {
+      console.error('Database connection failed:', dbError);
+      return NextResponse.json(
+        { success: false, error: 'Database connection failed' },
+        { status: 500 }
+      );
+    }
 
     // Find user by email
     const userQuery = 'SELECT id, uuid, name, email, password_hash, role FROM users WHERE email = $1';
