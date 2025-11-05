@@ -11,6 +11,9 @@ export const mockClients: Client[] = [
     tags: ["VIP", "Legal"],
     notes:
       "Key enterprise client. Requires weekly status updates and quarterly business reviews.",
+    createdAt: "2024-01-15T10:00:00Z",
+    updatedAt: "2024-11-01T14:30:00Z",
+    lastActivityAt: "2024-11-03T09:15:00Z",
   },
   {
     id: "client-2",
@@ -20,6 +23,9 @@ export const mockClients: Client[] = [
     email: "jackson.lee@aperturelabs.io",
     phone: "+1 (555) 204-1185",
     tags: ["Finance"],
+    createdAt: "2024-02-20T08:30:00Z",
+    updatedAt: "2024-10-15T16:45:00Z",
+    lastActivityAt: "2024-10-15T16:45:00Z",
   },
   {
     id: "client-3",
@@ -30,6 +36,9 @@ export const mockClients: Client[] = [
     phone: "+1 (555) 730-2299",
     tags: ["Design", "Partner"],
     notes: "Collaborative design partner with bi-weekly deliverables.",
+    createdAt: "2024-03-10T12:15:00Z",
+    updatedAt: "2024-11-02T11:20:00Z",
+    lastActivityAt: "2024-11-02T11:20:00Z",
   },
   {
     id: "client-4",
@@ -39,6 +48,9 @@ export const mockClients: Client[] = [
     email: "ava.chen@orbitanalytics.io",
     phone: "+1 (555) 830-5501",
     tags: ["Onboarding"],
+    createdAt: "2024-10-01T09:00:00Z",
+    updatedAt: "2024-11-01T10:30:00Z",
+    lastActivityAt: "2024-11-01T10:30:00Z",
   },
 ];
 

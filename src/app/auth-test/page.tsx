@@ -8,7 +8,8 @@ export default function AuthTestPage() {
   const [authState, setAuthState] = useState<AuthState>({
     isAuthenticated: false,
     user: null,
-    token: null
+    accessToken: null,
+    refreshToken: null
   })
 
   useEffect(() => {
