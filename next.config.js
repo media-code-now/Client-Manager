@@ -42,6 +42,9 @@ const nextConfig = {
 
   // Disable source maps in production for faster builds
   productionBrowserSourceMaps: false,
+  
+  // Optimize for Netlify deployment
+  swcMinify: true,
 }
 
 module.exports = nextConfig
