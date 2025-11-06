@@ -3,7 +3,7 @@
 import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
-import { login, saveTokenPair } from '@/utils/auth'
+import { login, saveTokenPair } from '../utils/auth'
 
 interface LoginResponse {
   success: boolean;
