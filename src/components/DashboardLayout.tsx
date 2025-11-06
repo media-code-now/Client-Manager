@@ -27,7 +27,7 @@ import type { FC } from "react";
 import { useMemo, useState, useEffect } from "react";
 import { ThemeToggle } from "./ThemeToggle";
 import { useTheme } from "./ThemeProvider";
-import { getAccessToken } from "../utils/auth";
+import { getAccessToken, getAuthState } from "../utils/auth";
 
 type ClientStatus = "Active" | "On hold" | "Archived";
 type TaskStatus = "Open" | "In progress" | "Done";
@@ -290,14 +290,20 @@ const DashboardLayout: FC = () => {
   const [appearancePreferences, setAppearancePreferences] = useState<AppearancePreferences>(mockAppearancePreferences);
   const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(mockNotificationPreferences);
 
-  // Fetch clients from API
-  const fetchClients = async () => {
+  // Fetch clients from API with retry logic
+  const fetchClients = async (retryCount = 0) => {
     try {
       setIsLoadingClients(true);
       const token = getAccessToken();
       
       if (!token) {
         console.error('No access token found');
+        // Try to refresh the page auth state
+        const authState = getAuthState();
+        if (!authState.isAuthenticated) {
+          console.log('User not authenticated, redirecting to login');
+          window.location.href = '/login';
+        }
         return;
       }
 
@@ -319,19 +325,34 @@ const DashboardLayout: FC = () => {
         if (data.success && data.clients) {
           console.log('Setting clients:', data.clients.length, 'clients found');
           setClients(data.clients);
-          // Set first client as selected if none selected
-          if (data.clients.length > 0 && !selectedClientId) {
-            setSelectedClientId(data.clients[0].id);
-          }
         } else {
           console.error('API returned success=false or no clients:', data);
+          // Retry once if API returns invalid response
+          if (retryCount < 1) {
+            console.log('Retrying client fetch...');
+            setTimeout(() => fetchClients(retryCount + 1), 1000);
+          }
         }
+      } else if (response.status === 401) {
+        console.error('Unauthorized - token may be expired');
+        // Try to use refresh token or redirect to login
+        window.location.href = '/login';
       } else {
         const errorData = await response.json().catch(() => ({}));
         console.error('Failed to fetch clients:', response.status, response.statusText, errorData);
+        // Retry once on other errors
+        if (retryCount < 1) {
+          console.log('Retrying client fetch after error...');
+          setTimeout(() => fetchClients(retryCount + 1), 2000);
+        }
       }
     } catch (error) {
       console.error('Error fetching clients:', error);
+      // Retry once on network errors
+      if (retryCount < 1) {
+        console.log('Retrying client fetch after network error...');
+        setTimeout(() => fetchClients(retryCount + 1), 2000);
+      }
     } finally {
       setIsLoadingClients(false);
     }
@@ -348,6 +369,14 @@ const DashboardLayout: FC = () => {
     }
   }, []);
 
+  // Re-fetch clients when the selectedClientId is empty (after refresh)
+  useEffect(() => {
+    if (clients.length > 0 && !selectedClientId) {
+      console.log('Setting first client as selected after data load');
+      setSelectedClientId(clients[0].id);
+    }
+  }, [clients, selectedClientId]);
+
   // Also fetch clients when the component becomes visible (after login redirect)
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -360,8 +389,21 @@ const DashboardLayout: FC = () => {
       }
     };
 
+    const handleWindowFocus = () => {
+      const token = getAccessToken();
+      if (token && clients.length === 0) {
+        console.log('Window focused, refetching clients...');
+        fetchClients();
+      }
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleWindowFocus);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleWindowFocus);
+    };
   }, [clients.length]);
 
   const navItems = [
@@ -3310,14 +3352,27 @@ const DashboardLayout: FC = () => {
                 <section className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg shadow-slate-900/5 backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20">
                   <div className="flex items-center justify-between">
                     <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                      Clients
+                      Clients ({clients.length})
                     </h2>
-                    <button
-                      type="button"
-                      className="rounded-full border border-white/60 bg-white/80 px-4 py-2 text-sm font-medium text-slate-700 shadow-lg shadow-slate-900/10 hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:bg-slate-900"
-                    >
-                      New client
-                    </button>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => fetchClients()}
+                        disabled={isLoadingClients}
+                        className="rounded-full border border-white/60 bg-white/80 px-3 py-2 text-sm font-medium text-slate-600 shadow-lg shadow-slate-900/10 hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:bg-slate-900 disabled:opacity-50"
+                        title="Refresh clients"
+                      >
+                        <svg className={`h-4 w-4 ${isLoadingClients ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-full border border-white/60 bg-white/80 px-4 py-2 text-sm font-medium text-slate-700 shadow-lg shadow-slate-900/10 hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:bg-slate-900"
+                      >
+                        New client
+                      </button>
+                    </div>
                   </div>
                   <div className="mt-4 space-y-4">
                     {isLoadingClients ? (
