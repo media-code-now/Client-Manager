@@ -10,6 +10,7 @@ import {
   CheckBadgeIcon,
   ClipboardDocumentListIcon,
   ClockIcon,
+  CloudIcon,
   Cog6ToothIcon,
   ComputerDesktopIcon,
   CurrencyDollarIcon,
@@ -306,6 +307,15 @@ const DashboardLayout: FC = () => {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [projectView, setProjectView] = useState<"list" | "detail">("list");
   const [projectStatusFilter, setProjectStatusFilter] = useState<string>("All Status");
+  const [weather, setWeather] = useState<{
+    temp: number;
+    description: string;
+    icon: string;
+    city: string;
+    humidity: number;
+    windSpeed: number;
+  } | null>(null);
+  const [isLoadingWeather, setIsLoadingWeather] = useState<boolean>(true);
 
   // Toggle password visibility
   const togglePasswordVisibility = (credentialId: string) => {
@@ -395,6 +405,7 @@ const DashboardLayout: FC = () => {
       console.log('Token found, fetching clients and tasks...');
       fetchClients();
       fetchTasks();
+      fetchWeather(); // Fetch weather on mount
     } else {
       console.log('No token found, skipping data fetch');
     }
@@ -1080,6 +1091,72 @@ const DashboardLayout: FC = () => {
         </div>
       </div>
     );
+  };
+
+  // Fetch weather data from Open-Meteo API
+  const fetchWeather = async () => {
+    try {
+      setIsLoadingWeather(true);
+      
+      // First, get user's location (you can also hardcode coordinates for a specific city)
+      // For demo, using New York coordinates. In production, use geolocation API
+      const latitude = 40.7128;
+      const longitude = -74.0060;
+      const city = "New York";
+
+      // Fetch weather data from Open-Meteo (free, no API key required)
+      const response = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Map weather codes to descriptions
+        const weatherCodeMap: { [key: number]: { description: string; icon: string } } = {
+          0: { description: 'Clear sky', icon: '☀️' },
+          1: { description: 'Mainly clear', icon: '🌤️' },
+          2: { description: 'Partly cloudy', icon: '⛅' },
+          3: { description: 'Overcast', icon: '☁️' },
+          45: { description: 'Foggy', icon: '🌫️' },
+          48: { description: 'Foggy', icon: '🌫️' },
+          51: { description: 'Light drizzle', icon: '🌦️' },
+          53: { description: 'Drizzle', icon: '🌦️' },
+          55: { description: 'Heavy drizzle', icon: '🌧️' },
+          61: { description: 'Light rain', icon: '🌧️' },
+          63: { description: 'Rain', icon: '🌧️' },
+          65: { description: 'Heavy rain', icon: '⛈️' },
+          71: { description: 'Light snow', icon: '🌨️' },
+          73: { description: 'Snow', icon: '❄️' },
+          75: { description: 'Heavy snow', icon: '❄️' },
+          77: { description: 'Snow grains', icon: '❄️' },
+          80: { description: 'Light showers', icon: '🌦️' },
+          81: { description: 'Showers', icon: '🌧️' },
+          82: { description: 'Heavy showers', icon: '⛈️' },
+          85: { description: 'Light snow showers', icon: '🌨️' },
+          86: { description: 'Snow showers', icon: '❄️' },
+          95: { description: 'Thunderstorm', icon: '⛈️' },
+          96: { description: 'Thunderstorm with hail', icon: '⛈️' },
+          99: { description: 'Thunderstorm with hail', icon: '⛈️' },
+        };
+
+        const weatherCode = data.current.weather_code;
+        const weatherInfo = weatherCodeMap[weatherCode] || { description: 'Unknown', icon: '🌡️' };
+
+        setWeather({
+          temp: Math.round(data.current.temperature_2m),
+          description: weatherInfo.description,
+          icon: weatherInfo.icon,
+          city: city,
+          humidity: data.current.relative_humidity_2m,
+          windSpeed: Math.round(data.current.wind_speed_10m),
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching weather:', error);
+    } finally {
+      setIsLoadingWeather(false);
+    }
   };
 
   // Fetch tasks from API
@@ -5233,13 +5310,75 @@ const DashboardLayout: FC = () => {
               renderSettingsView()
             ) : (
               <section className="space-y-8">
-                <div className="space-y-2">
-                  <p className="text-sm uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                    Dashboard
-                  </p>
-                  <h1 className="text-3xl font-semibold text-slate-900 dark:text-slate-100">
-                    Hi, Noam, here is your day
-                  </h1>
+                <div className="flex items-start justify-between gap-6">
+                  <div className="space-y-2 flex-1">
+                    <p className="text-sm uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                      Dashboard
+                    </p>
+                    <h1 className="text-3xl font-semibold text-slate-900 dark:text-slate-100">
+                      Hi, Noam, here is your day
+                    </h1>
+                  </div>
+
+                  {/* Weather Widget */}
+                  <div className="rounded-3xl border border-white/60 bg-gradient-to-br from-blue-50 to-blue-100/50 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:from-blue-950/30 dark:to-blue-900/20 min-w-[280px]">
+                    {isLoadingWeather ? (
+                      <div className="flex items-center justify-center py-4">
+                        <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600"></div>
+                      </div>
+                    ) : weather ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">
+                              {weather.city}
+                            </p>
+                            <p className="text-5xl font-bold text-blue-900 dark:text-blue-100">
+                              {weather.temp}°F
+                            </p>
+                          </div>
+                          <div className="text-5xl">
+                            {weather.icon}
+                          </div>
+                        </div>
+                        
+                        <div className="border-t border-blue-200/50 dark:border-blue-800/50 pt-4">
+                          <p className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-3">
+                            {weather.description}
+                          </p>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="flex items-center gap-2">
+                              <div className="rounded-lg bg-blue-200/50 p-1.5 dark:bg-blue-900/30">
+                                <svg className="h-4 w-4 text-blue-700 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                                </svg>
+                              </div>
+                              <div>
+                                <p className="text-xs text-blue-600 dark:text-blue-400">Humidity</p>
+                                <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">{weather.humidity}%</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="rounded-lg bg-blue-200/50 p-1.5 dark:bg-blue-900/30">
+                                <svg className="h-4 w-4 text-blue-700 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                </svg>
+                              </div>
+                              <div>
+                                <p className="text-xs text-blue-600 dark:text-blue-400">Wind</p>
+                                <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">{weather.windSpeed} mph</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-4">
+                        <CloudIcon className="mx-auto h-12 w-12 text-blue-400 mb-2" />
+                        <p className="text-sm text-blue-600 dark:text-blue-400">Weather unavailable</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
