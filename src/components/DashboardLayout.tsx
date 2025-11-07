@@ -5290,7 +5290,7 @@ const DashboardLayout: FC = () => {
             </div>
           </header>
 
-          <div className="flex-1 overflow-y-auto px-4 pb-24 pt-6 md:px-8 md:pb-12">
+          <div className="flex-1 overflow-y-auto px-4 pb-12 pt-6 md:px-8">
             {activeNavItem === 'Clients' ? (
               clientView === 'detail' ? renderClientDetail() : renderClientManagement()
             ) : activeNavItem === 'Projects' ? (
@@ -5887,7 +5887,8 @@ const DashboardLayout: FC = () => {
         </main>
       </div>
 
-      <nav className="fixed inset-x-4 bottom-4 z-30 flex items-center justify-around gap-2 rounded-full border border-white/70 bg-white/80 p-3 shadow-xl shadow-slate-900/10 backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/70 dark:shadow-slate-950/30 md:hidden">
+      {/* Bottom Navigation - Hidden on all screen sizes since we have app grid on mobile */}
+      <nav className="hidden">
         {navItems.map(({ label, icon: Icon }) => (
           <button
             key={label}
