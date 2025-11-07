@@ -187,61 +187,7 @@ const mockUserProfile: UserProfile = {
   marketingEmails: false,
 };
 
-// Client data is now fetched from the API
-
-const mockTasks: Task[] = [
-  {
-    id: "task-1",
-    clientId: "client-1",
-    title: "Prepare onboarding packet",
-    status: "In progress",
-    priority: "High",
-    dueDate: new Date().toISOString(),
-  },
-  {
-    id: "task-2",
-    clientId: "client-2",
-    title: "Review contract revisions",
-    status: "Open",
-    priority: "Medium",
-    dueDate: new Date().toISOString(),
-  },
-  {
-    id: "task-3",
-    clientId: "client-4",
-    title: "Send credentials update",
-    status: "Open",
-    priority: "Low",
-    dueDate: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(),
-  },
-  {
-    id: "task-4",
-    clientId: "client-3",
-    title: "Schedule Q3 planning",
-    status: "Done",
-    priority: "Medium",
-    dueDate: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-  },
-];
-
-const mockCredentials: Credential[] = [
-  {
-    id: "cred-1",
-    clientId: "client-1",
-    label: "Example Portal Access",
-    username: "demo.user",
-    maskedValue: "••••••1234",
-    url: "https://example.com",
-  },
-  {
-    id: "cred-2",
-    clientId: "client-2",
-    label: "Demo API Key",
-    username: "api-user",
-    maskedValue: "••••demo",
-    url: "https://api.example.com",
-  },
-];
+// Demo tasks and credentials removed; will fetch from API
 
 const classNames = (...classes: Array<string | false | null | undefined>) =>
   classes.filter(Boolean).join(" ");
@@ -268,8 +214,8 @@ const DashboardLayout: FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoadingClients, setIsLoadingClients] = useState<boolean>(true);
   const [clientView, setClientView] = useState<"list" | "detail">("list");
-  const [tasks, setTasks] = useState<Task[]>(mockTasks);
-  const [credentials, setCredentials] = useState<Credential[]>(mockCredentials);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [credentials, setCredentials] = useState<Credential[]>([]);
   const [showAddTaskModal, setShowAddTaskModal] = useState<boolean>(false);
   const [showAddCredentialModal, setShowAddCredentialModal] = useState<boolean>(false);
   const [showEditTaskModal, setShowEditTaskModal] = useState<boolean>(false);
@@ -362,10 +308,11 @@ const DashboardLayout: FC = () => {
   useEffect(() => {
     const token = getAccessToken();
     if (token) {
-      console.log('Token found, fetching clients...');
+      console.log('Token found, fetching clients and tasks...');
       fetchClients();
+      fetchTasks();
     } else {
-      console.log('No token found, skipping client fetch');
+      console.log('No token found, skipping data fetch');
     }
   }, []);
 
@@ -383,8 +330,9 @@ const DashboardLayout: FC = () => {
       if (!document.hidden) {
         const token = getAccessToken();
         if (token && clients.length === 0) {
-          console.log('Page became visible, refetching clients...');
+          console.log('Page became visible, refetching clients and tasks...');
           fetchClients();
+          fetchTasks();
         }
       }
     };
@@ -392,8 +340,9 @@ const DashboardLayout: FC = () => {
     const handleWindowFocus = () => {
       const token = getAccessToken();
       if (token && clients.length === 0) {
-        console.log('Window focused, refetching clients...');
+        console.log('Window focused, refetching clients and tasks...');
         fetchClients();
+        fetchTasks();
       }
     };
 
@@ -419,33 +368,33 @@ const DashboardLayout: FC = () => {
   );
 
   const clientTasks = useMemo<Task[]>(
-    () => mockTasks.filter((task) => task.clientId === selectedClientId),
-    [selectedClientId]
+    () => tasks.filter((task) => task.clientId === selectedClientId),
+    [selectedClientId, tasks]
   );
 
   const clientCredentials = useMemo<Credential[]>(
-    () => mockCredentials.filter((cred) => cred.clientId === selectedClientId),
-    [selectedClientId]
+    () => credentials.filter((cred) => cred.clientId === selectedClientId),
+    [selectedClientId, credentials]
   );
 
-  const openTasks = useMemo(() => mockTasks.filter((task) => task.status !== "Done"), []);
+  const openTasks = useMemo(() => tasks.filter((task) => task.status !== "Done"), [tasks]);
 
   const overdueCount = useMemo(() => {
     const now = new Date();
-    return mockTasks.filter((task) => {
+    return tasks.filter((task) => {
       if (!task.dueDate) return false;
       return new Date(task.dueDate).setHours(0, 0, 0, 0) < now.setHours(0, 0, 0, 0) && task.status !== "Done";
     }).length;
-  }, []);
+  }, [tasks]);
 
   const todaysTasks = useMemo(() => {
     const today = new Date().toDateString();
-    return mockTasks.filter((task) => {
+    return tasks.filter((task) => {
       if (!task.dueDate) return false;
       const due = new Date(task.dueDate).toDateString();
       return due === today && task.status !== "Done";
     });
-  }, []);
+  }, [tasks]);
 
   const statCards = useMemo(
     () => [
@@ -466,11 +415,11 @@ const DashboardLayout: FC = () => {
       },
       {
         label: "Stored credentials",
-        value: mockCredentials.length,
+        value: credentials.length,
         icon: ShieldCheckIcon,
       },
     ],
-    [clients.length, overdueCount, openTasks.length]
+    [clients.length, overdueCount, openTasks.length, credentials.length]
   );
 
   const todayLabel = (dateIso?: string) => {
@@ -582,8 +531,8 @@ const DashboardLayout: FC = () => {
                 </div>
 
                 <div className="mt-4 text-sm text-slate-500 dark:text-slate-400">
-                  <p>{mockTasks.filter(task => task.clientId === client.id && task.status !== 'Done').length} open tasks</p>
-                  <p>{mockCredentials.filter(cred => cred.clientId === client.id).length} stored credentials</p>
+                  <p>{tasks.filter(task => task.clientId === client.id && task.status !== 'Done').length} open tasks</p>
+                  <p>{credentials.filter(cred => cred.clientId === client.id).length} stored credentials</p>
                 </div>
               </div>
             </div>
@@ -805,18 +754,78 @@ const DashboardLayout: FC = () => {
     );
   };
 
+  // Fetch tasks from API
+  const fetchTasks = async (retryCount = 0) => {
+    try {
+      const token = getAccessToken();
+      if (!token) {
+        console.log('No token found for tasks fetch');
+        return;
+      }
+
+      const response = await fetch('/api/tasks', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.tasks) {
+          setTasks(data.tasks);
+        }
+      } else if (response.status === 401) {
+        console.error('Unauthorized - token may be expired for tasks');
+      } else {
+        console.error('Failed to fetch tasks:', response.status);
+        if (retryCount < 1) {
+          setTimeout(() => fetchTasks(retryCount + 1), 2000);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+      if (retryCount < 1) {
+        setTimeout(() => fetchTasks(retryCount + 1), 2000);
+      }
+    }
+  };
+
   const handleAddClient = async (newClientData: Omit<Client, 'id' | 'createdAt' | 'updatedAt' | 'lastActivityAt'>) => {
-    // For now, just add to local state - in a full implementation, this would call an API
-    const now = new Date().toISOString();
-    const clientWithId: Client = {
-      ...newClientData,
-      id: `client-${Date.now()}`, // Simple ID generation
-      createdAt: now,
-      updatedAt: now,
-      lastActivityAt: now,
-    };
-    setClients(prev => [...prev, clientWithId]);
-    setShowAddClientModal(false);
+    try {
+      const token = getAccessToken();
+      if (!token) {
+        console.error('No token for adding client');
+        return;
+      }
+
+      const response = await fetch('/api/clients', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newClientData.name,
+          company: newClientData.company || '',
+          status: newClientData.status || 'Active',
+          notes: newClientData.notes || '',
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.client) {
+          setClients(prev => [...prev, data.client]);
+          setShowAddClientModal(false);
+          console.log('Client added successfully');
+        }
+      } else {
+        console.error('Failed to add client:', response.status);
+      }
+    } catch (error) {
+      console.error('Error adding client:', error);
+    }
   };
 
   const renderAddClientModal = () => {
@@ -3429,7 +3438,7 @@ const DashboardLayout: FC = () => {
                           </div>
                           <span className="rounded-full bg-white/80 px-3 py-1 text-sm text-slate-600 shadow-inner shadow-white/60 dark:bg-slate-900/70 dark:text-slate-200 dark:shadow-slate-950/30">
                             {
-                              mockTasks.filter(
+                              tasks.filter(
                                 (task) => task.clientId === client.id && task.status !== "Done"
                               ).length
                             }{" "}

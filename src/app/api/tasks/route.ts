@@ -15,13 +15,8 @@ interface DecodedToken {
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('Clients API called');
-    
-    // Get authorization header
     const authHeader = request.headers.get('authorization');
-    
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.log('No auth header or invalid format:', authHeader?.substring(0, 20));
       return NextResponse.json(
         { success: false, error: 'Authorization token required' },
         { status: 401 }
@@ -30,20 +25,16 @@ export async function GET(request: NextRequest) {
 
     const token = authHeader.substring(7);
     const jwtSecret = process.env.JWT_SECRET;
-
     if (!jwtSecret) {
-      console.log('JWT_SECRET not found');
       return NextResponse.json(
         { success: false, error: 'Server configuration error' },
         { status: 500 }
       );
     }
 
-    // Verify JWT token
     let decoded: DecodedToken;
     try {
       decoded = jwt.verify(token, jwtSecret) as DecodedToken;
-      console.log('JWT verified for user:', decoded.email);
     } catch (error) {
       return NextResponse.json(
         { success: false, error: 'Invalid or expired token' },
@@ -51,44 +42,34 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Connect to database
-    const client = new Client({
-      connectionString: getDatabaseUrl()
-    });
-    
+    const client = new Client({ connectionString: getDatabaseUrl() });
     await client.connect();
 
-    // Fetch clients
-    const clientsQuery = `
-      SELECT 
-        id::text as "id",
-        name,
-        company,
-        status,
-        email,
-        phone,
-        -- tags is optional; ignore if column missing in some schemas
-        NULL as tags,
-        notes,
-        created_at as "createdAt",
-        updated_at as "updatedAt",
-        COALESCE(last_activity_at, updated_at) as "lastActivityAt"
-      FROM clients 
-      ORDER BY updated_at DESC
-    `;
+    // Ensure minimal tasks table exists
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tasks (
+        id SERIAL PRIMARY KEY,
+        client_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        status TEXT DEFAULT 'Open',
+        priority TEXT DEFAULT 'Medium',
+        due_date TIMESTAMP WITH TIME ZONE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `);
 
-    const result = await client.query(clientsQuery);
+    const result = await client.query(
+      `SELECT id::text as "id", client_id::text as "clientId", title, description,
+              status, priority, due_date as "dueDate" FROM tasks ORDER BY updated_at DESC`
+    );
+
     await client.end();
 
-    console.log('Clients query returned:', result.rows.length, 'clients');
-
-    return NextResponse.json({
-      success: true,
-      clients: result.rows
-    });
-
+    return NextResponse.json({ success: true, tasks: result.rows });
   } catch (error) {
-    console.error('Clients API error:', error);
+    console.error('Tasks GET error:', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }
@@ -115,7 +96,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify JWT token
     try {
       jwt.verify(token, jwtSecret);
     } catch (error) {
@@ -126,11 +106,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, company, status = 'Active', email = null, phone = null, notes = null } = body || {};
+    const { clientId, title, description = null, status = 'Open', priority = 'Medium', dueDate = null } = body || {};
 
-    if (!name || typeof name !== 'string') {
+    if (!clientId || !title) {
       return NextResponse.json(
-        { success: false, error: 'Missing required field: name' },
+        { success: false, error: 'Missing required fields: clientId, title' },
         { status: 400 }
       );
     }
@@ -138,35 +118,33 @@ export async function POST(request: NextRequest) {
     const client = new Client({ connectionString: getDatabaseUrl() });
     await client.connect();
 
-    // Ensure minimal clients table exists (safe for Postgres; no-op if already exists)
+    // Ensure tasks table exists
     await client.query(`
-      CREATE TABLE IF NOT EXISTS clients (
+      CREATE TABLE IF NOT EXISTS tasks (
         id SERIAL PRIMARY KEY,
-        name TEXT NOT NULL,
-        company TEXT,
-        status TEXT DEFAULT 'Active',
-        email TEXT,
-        phone TEXT,
-        notes TEXT,
+        client_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        status TEXT DEFAULT 'Open',
+        priority TEXT DEFAULT 'Medium',
+        due_date TIMESTAMP WITH TIME ZONE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
     `);
 
-    const insertQuery = `
-      INSERT INTO clients (name, company, status, email, phone, notes, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-      RETURNING id::text as "id", name, company, status, email, phone, notes,
-                created_at as "createdAt", updated_at as "updatedAt",
-                updated_at as "lastActivityAt";
-    `;
-    const insertValues = [name, company || null, status, email, phone, notes];
-    const result = await client.query(insertQuery, insertValues);
+    const result = await client.query(
+      `INSERT INTO tasks (client_id, title, description, status, priority, due_date, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+       RETURNING id::text as "id", client_id::text as "clientId", title, description, status, priority, due_date as "dueDate"`,
+      [parseInt(clientId, 10), title, description, status, priority, dueDate]
+    );
+
     await client.end();
 
-    return NextResponse.json({ success: true, client: result.rows[0] }, { status: 201 });
+    return NextResponse.json({ success: true, task: result.rows[0] }, { status: 201 });
   } catch (error) {
-    console.error('Create client error:', error);
+    console.error('Tasks POST error:', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }
