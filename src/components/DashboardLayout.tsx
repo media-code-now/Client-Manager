@@ -19,6 +19,7 @@ import {
   ExclamationTriangleIcon,
   EyeIcon,
   EyeSlashIcon,
+  FolderIcon,
   HomeIcon,
   InformationCircleIcon,
   KeyIcon,
@@ -27,6 +28,7 @@ import {
   MoonIcon,
   PaintBrushIcon,
   PlusIcon,
+  RectangleStackIcon,
   ShieldCheckIcon,
   SunIcon,
   UserCircleIcon,
@@ -88,6 +90,26 @@ type Invoice = {
   dueDate: string;
   description: string;
   items?: { description: string; quantity: number; rate: number }[];
+};
+
+type Project = {
+  id: string;
+  name: string;
+  clientId: string;
+  description: string;
+  status: 'Planning' | 'In Progress' | 'On Hold' | 'Completed' | 'Cancelled';
+  priority: 'Low' | 'Medium' | 'High';
+  startDate: string;
+  endDate: string;
+  budget?: number;
+  progress: number; // 0-100
+  taskIds: string[];
+  deliverables: {
+    id: string;
+    name: string;
+    completed: boolean;
+    dueDate?: string;
+  }[];
 };
 
 type Notification = {
@@ -279,6 +301,11 @@ const DashboardLayout: FC = () => {
   const [calendarViewMode, setCalendarViewMode] = useState<'month' | 'week' | 'day'>('month');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationFilter, setNotificationFilter] = useState<string>("All Types");
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [showAddProjectModal, setShowAddProjectModal] = useState<boolean>(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [projectView, setProjectView] = useState<"list" | "detail">("list");
+  const [projectStatusFilter, setProjectStatusFilter] = useState<string>("All Status");
 
   // Toggle password visibility
   const togglePasswordVisibility = (credentialId: string) => {
@@ -489,6 +516,91 @@ const DashboardLayout: FC = () => {
         },
       ];
       setNotifications(sampleNotifications);
+
+      // Initialize sample projects
+      const sampleProjects: Project[] = [
+        {
+          id: 'proj-1',
+          name: 'Website Redesign',
+          clientId: clients[0].id,
+          description: 'Complete overhaul of company website with modern design and improved UX',
+          status: 'In Progress',
+          priority: 'High',
+          startDate: '2024-01-15',
+          endDate: '2024-03-30',
+          budget: 25000,
+          progress: 65,
+          taskIds: [],
+          deliverables: [
+            { id: 'd1', name: 'UI/UX Design Mockups', completed: true, dueDate: '2024-02-01' },
+            { id: 'd2', name: 'Homepage Development', completed: true, dueDate: '2024-02-15' },
+            { id: 'd3', name: 'Product Pages', completed: false, dueDate: '2024-03-01' },
+            { id: 'd4', name: 'Contact & Forms', completed: false, dueDate: '2024-03-15' },
+            { id: 'd5', name: 'Final Testing & Launch', completed: false, dueDate: '2024-03-30' },
+          ],
+        },
+        {
+          id: 'proj-2',
+          name: 'Mobile App Development',
+          clientId: clients.length > 1 ? clients[1].id : clients[0].id,
+          description: 'Native iOS and Android app for customer engagement',
+          status: 'Planning',
+          priority: 'High',
+          startDate: '2024-03-01',
+          endDate: '2024-08-31',
+          budget: 75000,
+          progress: 15,
+          taskIds: [],
+          deliverables: [
+            { id: 'd6', name: 'Requirements Gathering', completed: true, dueDate: '2024-03-15' },
+            { id: 'd7', name: 'Technical Architecture', completed: false, dueDate: '2024-04-01' },
+            { id: 'd8', name: 'UI/UX Design', completed: false, dueDate: '2024-04-30' },
+            { id: 'd9', name: 'Backend API Development', completed: false, dueDate: '2024-06-15' },
+            { id: 'd10', name: 'Frontend Development', completed: false, dueDate: '2024-07-30' },
+            { id: 'd11', name: 'Testing & Deployment', completed: false, dueDate: '2024-08-31' },
+          ],
+        },
+        {
+          id: 'proj-3',
+          name: 'Marketing Campaign Q1',
+          clientId: clients.length > 2 ? clients[2].id : clients[0].id,
+          description: 'Digital marketing campaign for Q1 product launch',
+          status: 'Completed',
+          priority: 'Medium',
+          startDate: '2024-01-01',
+          endDate: '2024-03-31',
+          budget: 15000,
+          progress: 100,
+          taskIds: [],
+          deliverables: [
+            { id: 'd12', name: 'Campaign Strategy', completed: true, dueDate: '2024-01-15' },
+            { id: 'd13', name: 'Content Creation', completed: true, dueDate: '2024-02-01' },
+            { id: 'd14', name: 'Social Media Ads', completed: true, dueDate: '2024-02-15' },
+            { id: 'd15', name: 'Email Campaigns', completed: true, dueDate: '2024-03-01' },
+            { id: 'd16', name: 'Analytics Report', completed: true, dueDate: '2024-03-31' },
+          ],
+        },
+        {
+          id: 'proj-4',
+          name: 'CRM Integration',
+          clientId: clients[0].id,
+          description: 'Integrate existing systems with new CRM platform',
+          status: 'On Hold',
+          priority: 'Low',
+          startDate: '2024-02-01',
+          endDate: '2024-05-31',
+          budget: 18000,
+          progress: 30,
+          taskIds: [],
+          deliverables: [
+            { id: 'd17', name: 'System Audit', completed: true, dueDate: '2024-02-15' },
+            { id: 'd18', name: 'Data Migration Plan', completed: false, dueDate: '2024-03-01' },
+            { id: 'd19', name: 'API Development', completed: false, dueDate: '2024-04-15' },
+            { id: 'd20', name: 'Testing & Rollout', completed: false, dueDate: '2024-05-31' },
+          ],
+        },
+      ];
+      setProjects(sampleProjects);
     }
   }, [clients]);
 
@@ -534,6 +646,7 @@ const DashboardLayout: FC = () => {
   const navItems = [
     { label: "Dashboard", icon: HomeIcon },
     { label: "Clients", icon: UserGroupIcon },
+    { label: "Projects", icon: RectangleStackIcon },
     { label: "Tasks", icon: ClipboardDocumentListIcon },
     { label: "Calendar", icon: CalendarIcon },
     { label: "Invoices", icon: CurrencyDollarIcon },
@@ -1205,6 +1318,532 @@ const DashboardLayout: FC = () => {
             </div>
           </form>
         </div>
+      </div>
+    );
+  };
+
+  const renderProjectsView = () => {
+    const selectedProject = projects.find(p => p.id === selectedProjectId);
+
+    // Filter projects
+    const filteredProjects = projectStatusFilter === 'All Status'
+      ? projects
+      : projects.filter(p => p.status === projectStatusFilter);
+
+    const handleAddProject = (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      const formData = new FormData(e.currentTarget);
+      
+      const newProject: Project = {
+        id: `proj-${Date.now()}`,
+        name: formData.get('name') as string,
+        clientId: formData.get('clientId') as string,
+        description: formData.get('description') as string,
+        status: 'Planning',
+        priority: formData.get('priority') as Project['priority'],
+        startDate: formData.get('startDate') as string,
+        endDate: formData.get('endDate') as string,
+        budget: parseFloat(formData.get('budget') as string) || undefined,
+        progress: 0,
+        taskIds: [],
+        deliverables: [],
+      };
+
+      setProjects([...projects, newProject]);
+      setShowAddProjectModal(false);
+    };
+
+    const handleToggleDeliverable = (projectId: string, deliverableId: string) => {
+      setProjects(projects.map(p => {
+        if (p.id === projectId) {
+          const updatedDeliverables = p.deliverables.map(d =>
+            d.id === deliverableId ? { ...d, completed: !d.completed } : d
+          );
+          const completedCount = updatedDeliverables.filter(d => d.completed).length;
+          const progress = Math.round((completedCount / updatedDeliverables.length) * 100);
+          return { ...p, deliverables: updatedDeliverables, progress };
+        }
+        return p;
+      }));
+    };
+
+    const getStatusColor = (status: Project['status']) => {
+      switch (status) {
+        case 'Planning': return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
+        case 'In Progress': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+        case 'On Hold': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
+        case 'Completed': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+        case 'Cancelled': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+      }
+    };
+
+    const getPriorityColor = (priority: Project['priority']) => {
+      switch (priority) {
+        case 'Low': return 'text-slate-600 dark:text-slate-400';
+        case 'Medium': return 'text-orange-600 dark:text-orange-400';
+        case 'High': return 'text-red-600 dark:text-red-400';
+      }
+    };
+
+    if (projectView === 'detail' && selectedProject) {
+      const client = clients.find(c => c.id === selectedProject.clientId);
+      const projectTasks = tasks.filter(t => selectedProject.taskIds.includes(t.id));
+      const completedDeliverables = selectedProject.deliverables.filter(d => d.completed).length;
+      const totalDeliverables = selectedProject.deliverables.length;
+
+      return (
+        <div className="space-y-6">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => {
+                setProjectView('list');
+                setSelectedProjectId(null);
+              }}
+              className="rounded-xl p-2 hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              <ArrowLeftIcon className="h-5 w-5" />
+            </button>
+            <div>
+              <h1 className="text-3xl font-semibold text-slate-900 dark:text-slate-100">
+                {selectedProject.name}
+              </h1>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Client: {client?.name || 'Unknown'}
+              </p>
+            </div>
+          </div>
+
+          {/* Project Overview Cards */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+            <div className="rounded-2xl border border-white/60 bg-gradient-to-br from-blue-50 to-blue-100/50 p-6 shadow-lg dark:border-slate-800/60 dark:from-blue-950/30 dark:to-blue-900/20">
+              <p className="text-xs font-medium text-blue-600 dark:text-blue-400">Status</p>
+              <p className="mt-2 text-lg font-bold text-blue-900 dark:text-blue-100">
+                {selectedProject.status}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-white/60 bg-gradient-to-br from-green-50 to-green-100/50 p-6 shadow-lg dark:border-slate-800/60 dark:from-green-950/30 dark:to-green-900/20">
+              <p className="text-xs font-medium text-green-600 dark:text-green-400">Progress</p>
+              <p className="mt-2 text-lg font-bold text-green-900 dark:text-green-100">
+                {selectedProject.progress}%
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-white/60 bg-gradient-to-br from-purple-50 to-purple-100/50 p-6 shadow-lg dark:border-slate-800/60 dark:from-purple-950/30 dark:to-purple-900/20">
+              <p className="text-xs font-medium text-purple-600 dark:text-purple-400">Budget</p>
+              <p className="mt-2 text-lg font-bold text-purple-900 dark:text-purple-100">
+                ${selectedProject.budget?.toLocaleString() || 'N/A'}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-white/60 bg-gradient-to-br from-orange-50 to-orange-100/50 p-6 shadow-lg dark:border-slate-800/60 dark:from-orange-950/30 dark:to-orange-900/20">
+              <p className="text-xs font-medium text-orange-600 dark:text-orange-400">Timeline</p>
+              <p className="mt-2 text-sm font-bold text-orange-900 dark:text-orange-100">
+                {new Date(selectedProject.startDate).toLocaleDateString()} - {new Date(selectedProject.endDate).toLocaleDateString()}
+              </p>
+            </div>
+          </div>
+
+          {/* Project Details */}
+          <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60">
+            <h2 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">
+              Project Details
+            </h2>
+            <p className="text-slate-600 dark:text-slate-400">
+              {selectedProject.description}
+            </p>
+            
+            {/* Progress Bar */}
+            <div className="mt-6">
+              <div className="mb-2 flex justify-between text-sm">
+                <span className="text-slate-700 dark:text-slate-300">Overall Progress</span>
+                <span className="font-semibold text-slate-900 dark:text-slate-100">{selectedProject.progress}%</span>
+              </div>
+              <div className="h-3 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-500"
+                  style={{ width: `${selectedProject.progress}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Deliverables */}
+          <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                Deliverables
+              </h2>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {completedDeliverables} of {totalDeliverables} completed
+              </span>
+            </div>
+            <div className="space-y-3">
+              {selectedProject.deliverables.map(deliverable => (
+                <div
+                  key={deliverable.id}
+                  className="flex items-center gap-4 rounded-2xl border border-slate-200/60 bg-white/50 p-4 dark:border-slate-700/60 dark:bg-slate-800/50"
+                >
+                  <input
+                    type="checkbox"
+                    checked={deliverable.completed}
+                    onChange={() => handleToggleDeliverable(selectedProject.id, deliverable.id)}
+                    className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600"
+                  />
+                  <div className="flex-1">
+                    <p className={`font-medium ${deliverable.completed ? 'text-slate-400 line-through dark:text-slate-500' : 'text-slate-900 dark:text-slate-100'}`}>
+                      {deliverable.name}
+                    </p>
+                    {deliverable.dueDate && (
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        Due: {new Date(deliverable.dueDate).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                  {deliverable.completed && (
+                    <CheckCircleIcon className="h-6 w-6 text-green-500" />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Timeline Visualization */}
+          <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60">
+            <h2 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">
+              Project Timeline
+            </h2>
+            <div className="relative">
+              <div className="absolute left-0 top-0 h-full w-1 bg-blue-200 dark:bg-blue-900"></div>
+              <div className="space-y-6 pl-8">
+                {selectedProject.deliverables.map((deliverable, index) => (
+                  <div key={deliverable.id} className="relative">
+                    <div className={`absolute -left-[33px] h-4 w-4 rounded-full border-2 ${
+                      deliverable.completed 
+                        ? 'border-green-500 bg-green-500' 
+                        : 'border-blue-500 bg-white dark:bg-slate-900'
+                    }`}></div>
+                    <div className={`rounded-xl p-4 ${
+                      deliverable.completed 
+                        ? 'bg-green-50 dark:bg-green-950/20' 
+                        : 'bg-blue-50 dark:bg-blue-950/20'
+                    }`}>
+                      <p className="font-medium text-slate-900 dark:text-slate-100">
+                        {deliverable.name}
+                      </p>
+                      {deliverable.dueDate && (
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                          {new Date(deliverable.dueDate).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // List view
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold text-slate-900 dark:text-slate-100">
+              Projects
+            </h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Manage projects, track timelines, and monitor deliverables
+            </p>
+          </div>
+          <button
+            onClick={() => setShowAddProjectModal(true)}
+            className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-900/20 transition-all hover:from-blue-700 hover:to-blue-800 dark:from-blue-500 dark:to-blue-600"
+          >
+            <PlusIcon className="h-5 w-5" />
+            New Project
+          </button>
+        </div>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+          <div className="rounded-2xl border border-white/60 bg-gradient-to-br from-blue-50 to-blue-100/50 p-6 shadow-lg dark:border-slate-800/60 dark:from-blue-950/30 dark:to-blue-900/20">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-blue-200/50 p-2 dark:bg-blue-900/30">
+                <RectangleStackIcon className="h-5 w-5 text-blue-700 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-blue-600 dark:text-blue-400">Total</p>
+                <p className="text-xl font-bold text-blue-900 dark:text-blue-100">
+                  {projects.length}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/60 bg-gradient-to-br from-green-50 to-green-100/50 p-6 shadow-lg dark:border-slate-800/60 dark:from-green-950/30 dark:to-green-900/20">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-green-200/50 p-2 dark:bg-green-900/30">
+                <CheckCircleIcon className="h-5 w-5 text-green-700 dark:text-green-400" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-green-600 dark:text-green-400">Completed</p>
+                <p className="text-xl font-bold text-green-900 dark:text-green-100">
+                  {projects.filter(p => p.status === 'Completed').length}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/60 bg-gradient-to-br from-orange-50 to-orange-100/50 p-6 shadow-lg dark:border-slate-800/60 dark:from-orange-950/30 dark:to-orange-900/20">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-orange-200/50 p-2 dark:bg-orange-900/30">
+                <ClockIcon className="h-5 w-5 text-orange-700 dark:text-orange-400" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-orange-600 dark:text-orange-400">In Progress</p>
+                <p className="text-xl font-bold text-orange-900 dark:text-orange-100">
+                  {projects.filter(p => p.status === 'In Progress').length}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/60 bg-gradient-to-br from-purple-50 to-purple-100/50 p-6 shadow-lg dark:border-slate-800/60 dark:from-purple-950/30 dark:to-purple-900/20">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-purple-200/50 p-2 dark:bg-purple-900/30">
+                <FolderIcon className="h-5 w-5 text-purple-700 dark:text-purple-400" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-purple-600 dark:text-purple-400">Planning</p>
+                <p className="text-xl font-bold text-purple-900 dark:text-purple-100">
+                  {projects.filter(p => p.status === 'Planning').length}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filter */}
+        <div className="flex items-center gap-4">
+          <select
+            value={projectStatusFilter}
+            onChange={(e) => setProjectStatusFilter(e.target.value)}
+            className="rounded-xl border-slate-300 bg-white/70 px-4 py-2 text-sm backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/60"
+          >
+            <option>All Status</option>
+            <option>Planning</option>
+            <option>In Progress</option>
+            <option>On Hold</option>
+            <option>Completed</option>
+            <option>Cancelled</option>
+          </select>
+        </div>
+
+        {/* Projects Grid */}
+        {filteredProjects.length === 0 ? (
+          <div className="rounded-3xl border border-white/60 bg-white/70 p-12 text-center shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60">
+            <RectangleStackIcon className="mx-auto h-12 w-12 text-slate-400" />
+            <h3 className="mt-2 text-sm font-medium text-slate-900 dark:text-slate-100">
+              No projects found
+            </h3>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Get started by creating your first project.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {filteredProjects.map(project => {
+              const client = clients.find(c => c.id === project.clientId);
+              const completedDeliverables = project.deliverables.filter(d => d.completed).length;
+              const totalDeliverables = project.deliverables.length;
+
+              return (
+                <div
+                  key={project.id}
+                  onClick={() => {
+                    setSelectedProjectId(project.id);
+                    setProjectView('detail');
+                  }}
+                  className="group cursor-pointer rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg backdrop-blur-md transition-all hover:shadow-xl dark:border-slate-800/60 dark:bg-slate-900/60"
+                >
+                  <div className="mb-4 flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                        {project.name}
+                      </h3>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        {client?.name || 'Unknown Client'}
+                      </p>
+                    </div>
+                    <span className={`text-xs font-bold ${getPriorityColor(project.priority)}`}>
+                      {project.priority}
+                    </span>
+                  </div>
+
+                  <p className="mb-4 line-clamp-2 text-sm text-slate-600 dark:text-slate-400">
+                    {project.description}
+                  </p>
+
+                  <div className="mb-4">
+                    <div className="mb-2 flex justify-between text-xs">
+                      <span className="text-slate-600 dark:text-slate-400">Progress</span>
+                      <span className="font-semibold text-slate-900 dark:text-slate-100">{project.progress}%</span>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-500"
+                        style={{ width: `${project.progress}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(project.status)}`}>
+                      {project.status}
+                    </span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      {completedDeliverables}/{totalDeliverables} deliverables
+                    </span>
+                  </div>
+
+                  <div className="mt-4 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                    <CalendarIcon className="h-4 w-4" />
+                    <span>{new Date(project.endDate).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Add Project Modal */}
+        {showAddProjectModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-2xl rounded-3xl border border-white/60 bg-white/90 p-6 shadow-2xl backdrop-blur-xl dark:border-slate-800/60 dark:bg-slate-900/90">
+              <h2 className="mb-4 text-2xl font-bold text-slate-900 dark:text-slate-100">
+                Create New Project
+              </h2>
+              <form onSubmit={handleAddProject} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Project Name
+                    </label>
+                    <input
+                      type="text"
+                      name="name"
+                      required
+                      className="w-full rounded-xl border-slate-300 bg-white/70 px-4 py-2 backdrop-blur-md dark:border-slate-700 dark:bg-slate-800/60"
+                      placeholder="Website Redesign"
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Client
+                    </label>
+                    <select
+                      name="clientId"
+                      required
+                      className="w-full rounded-xl border-slate-300 bg-white/70 px-4 py-2 backdrop-blur-md dark:border-slate-700 dark:bg-slate-800/60"
+                    >
+                      <option value="">Select a client</option>
+                      {clients.map(client => (
+                        <option key={client.id} value={client.id}>
+                          {client.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Description
+                    </label>
+                    <textarea
+                      name="description"
+                      rows={3}
+                      className="w-full rounded-xl border-slate-300 bg-white/70 px-4 py-2 backdrop-blur-md dark:border-slate-700 dark:bg-slate-800/60"
+                      placeholder="Project description..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Priority
+                    </label>
+                    <select
+                      name="priority"
+                      required
+                      className="w-full rounded-xl border-slate-300 bg-white/70 px-4 py-2 backdrop-blur-md dark:border-slate-700 dark:bg-slate-800/60"
+                    >
+                      <option value="Low">Low</option>
+                      <option value="Medium">Medium</option>
+                      <option value="High">High</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Budget ($)
+                    </label>
+                    <input
+                      type="number"
+                      name="budget"
+                      min="0"
+                      step="1"
+                      className="w-full rounded-xl border-slate-300 bg-white/70 px-4 py-2 backdrop-blur-md dark:border-slate-700 dark:bg-slate-800/60"
+                      placeholder="25000"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Start Date
+                    </label>
+                    <input
+                      type="date"
+                      name="startDate"
+                      required
+                      className="w-full rounded-xl border-slate-300 bg-white/70 px-4 py-2 backdrop-blur-md dark:border-slate-700 dark:bg-slate-800/60"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                      End Date
+                    </label>
+                    <input
+                      type="date"
+                      name="endDate"
+                      required
+                      className="w-full rounded-xl border-slate-300 bg-white/70 px-4 py-2 backdrop-blur-md dark:border-slate-700 dark:bg-slate-800/60"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddProjectModal(false)}
+                    className="flex-1 rounded-xl border border-slate-300 bg-white/70 px-4 py-2 font-medium text-slate-700 backdrop-blur-md hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300 dark:hover:bg-slate-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-2 font-medium text-white shadow-lg shadow-blue-900/20 hover:from-blue-700 hover:to-blue-800 dark:from-blue-500 dark:to-blue-600"
+                  >
+                    Create Project
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -4578,6 +5217,8 @@ const DashboardLayout: FC = () => {
           <div className="flex-1 overflow-y-auto px-4 pb-24 pt-6 md:px-8 md:pb-12">
             {activeNavItem === 'Clients' ? (
               clientView === 'detail' ? renderClientDetail() : renderClientManagement()
+            ) : activeNavItem === 'Projects' ? (
+              projectView === 'detail' ? renderProjectsView() : renderProjectsView()
             ) : activeNavItem === 'Tasks' ? (
               renderTasksView()
             ) : activeNavItem === 'Calendar' ? (
