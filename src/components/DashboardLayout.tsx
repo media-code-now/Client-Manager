@@ -12,6 +12,7 @@ import {
   EnvelopeIcon,
   ExclamationTriangleIcon,
   EyeIcon,
+  EyeSlashIcon,
   HomeIcon,
   KeyIcon,
   LanguageIcon,
@@ -63,6 +64,7 @@ type Credential = {
   clientId: string;
   label: string;
   username: string;
+  password: string;
   maskedValue: string;
   url?: string;
 };
@@ -236,6 +238,20 @@ const DashboardLayout: FC = () => {
   const [showChangePasswordModal, setShowChangePasswordModal] = useState<boolean>(false);
   const [appearancePreferences, setAppearancePreferences] = useState<AppearancePreferences>(mockAppearancePreferences);
   const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(mockNotificationPreferences);
+  const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
+
+  // Toggle password visibility
+  const togglePasswordVisibility = (credentialId: string) => {
+    setVisiblePasswords(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(credentialId)) {
+        newSet.delete(credentialId);
+      } else {
+        newSet.add(credentialId);
+      }
+      return newSet;
+    });
+  };
 
   // Fetch clients from API with retry logic
   const fetchClients = async (retryCount = 0) => {
@@ -729,16 +745,29 @@ const DashboardLayout: FC = () => {
                   className="rounded-2xl border border-white/60 bg-white/80 p-4 shadow-inner shadow-white/40 dark:border-slate-700/60 dark:bg-slate-900/80"
                 >
                   <div className="flex items-center justify-between">
-                    <div>
+                    <div className="flex-1">
                       <h4 className="font-medium text-slate-900 dark:text-slate-100">
                         {credential.label}
                       </h4>
                       <p className="text-sm text-slate-500 dark:text-slate-400">
                         Username: {credential.username}
                       </p>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        Password: ••••••••
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                          Password: {visiblePasswords.has(credential.id) ? credential.password : '••••••••'}
+                        </p>
+                        <button
+                          onClick={() => togglePasswordVisibility(credential.id)}
+                          className="rounded-lg p-1 hover:bg-slate-100 dark:hover:bg-slate-800"
+                          title={visiblePasswords.has(credential.id) ? "Hide password" : "Show password"}
+                        >
+                          {visiblePasswords.has(credential.id) ? (
+                            <EyeSlashIcon className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                          ) : (
+                            <EyeIcon className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                          )}
+                        </button>
+                      </div>
                       {credential.url && (
                         <a
                           href={credential.url}
@@ -751,7 +780,13 @@ const DashboardLayout: FC = () => {
                       )}
                     </div>
                     <div className="flex gap-2">
-                      <button className="rounded-2xl bg-slate-100 px-3 py-2 text-sm text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText(credential.password);
+                          alert('Password copied to clipboard!');
+                        }}
+                        className="rounded-2xl bg-slate-100 px-3 py-2 text-sm text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                      >
                         Copy
                       </button>
                       <button className="rounded-2xl bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600">
@@ -1663,6 +1698,7 @@ const DashboardLayout: FC = () => {
                 clientId: selectedClient.id,
                 label: formData.get('label') as string,
                 username: formData.get('username') as string,
+                password: password,
                 maskedValue: '••••••••',
                 url: formData.get('url') as string || undefined,
               };
@@ -3693,7 +3729,7 @@ const DashboardLayout: FC = () => {
                           key={credential.id}
                           className="flex flex-col gap-3 rounded-2xl border border-white/60 bg-white/70 p-4 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/60 md:flex-row md:items-center md:justify-between"
                         >
-                          <div>
+                          <div className="flex-1">
                             <p className="text-base font-semibold text-slate-900 dark:text-slate-100">
                               {credential.label}
                             </p>
@@ -3704,9 +3740,31 @@ const DashboardLayout: FC = () => {
                               {credential.url && <span>{credential.url}</span>}
                             </div>
                           </div>
-                          <span className="rounded-full bg-white/80 px-3 py-1 font-mono text-sm tracking-wide text-slate-500 dark:bg-slate-900/70 dark:text-slate-300">
-                            ••••••••
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-full bg-white/80 px-3 py-1 font-mono text-sm tracking-wide text-slate-500 dark:bg-slate-900/70 dark:text-slate-300">
+                              {visiblePasswords.has(credential.id) ? credential.password : '••••••••'}
+                            </span>
+                            <button
+                              onClick={() => togglePasswordVisibility(credential.id)}
+                              className="rounded-lg p-2 hover:bg-white/80 dark:hover:bg-slate-800"
+                              title={visiblePasswords.has(credential.id) ? "Hide password" : "Show password"}
+                            >
+                              {visiblePasswords.has(credential.id) ? (
+                                <EyeSlashIcon className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+                              ) : (
+                                <EyeIcon className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(credential.password);
+                                alert('Password copied to clipboard!');
+                              }}
+                              className="rounded-2xl bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                            >
+                              Copy
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
