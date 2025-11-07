@@ -796,8 +796,11 @@ const DashboardLayout: FC = () => {
       const token = getAccessToken();
       if (!token) {
         console.error('No token for adding client');
+        alert('Authentication error. Please log in again.');
         return;
       }
+
+      console.log('Attempting to add client:', newClientData);
 
       const response = await fetch('/api/clients', {
         method: 'POST',
@@ -809,22 +812,35 @@ const DashboardLayout: FC = () => {
           name: newClientData.name,
           company: newClientData.company || '',
           status: newClientData.status || 'Active',
+          email: newClientData.email || '',
+          phone: newClientData.phone || '',
           notes: newClientData.notes || '',
         }),
       });
 
+      console.log('Add client response status:', response.status);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('Add client response data:', data);
+        
         if (data.success && data.client) {
           setClients(prev => [...prev, data.client]);
           setShowAddClientModal(false);
-          console.log('Client added successfully');
+          console.log('Client added successfully:', data.client);
+          alert('Client added successfully!');
+        } else {
+          console.error('API returned success=false:', data);
+          alert('Failed to add client: ' + (data.error || 'Unknown error'));
         }
       } else {
-        console.error('Failed to add client:', response.status);
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Failed to add client:', response.status, errorData);
+        alert(`Failed to add client: ${errorData.error || response.statusText}`);
       }
     } catch (error) {
       console.error('Error adding client:', error);
+      alert('Network error. Please check your connection and try again.');
     }
   };
 
