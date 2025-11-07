@@ -3327,23 +3327,23 @@ const DashboardLayout: FC = () => {
                   </h1>
                 </div>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {statCards.map(({ label, value, icon: Icon }) => (
                   <div
                     key={label}
                     className={classNames(
-                      "flex items-center gap-4 rounded-2xl border border-white/60 bg-white/70 p-5 shadow-lg shadow-slate-900/5 backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20",
+                      "flex flex-col items-center gap-2 rounded-xl border border-white/60 bg-white/70 p-3 shadow-md shadow-slate-900/5 backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20",
                       iosMotion.hoverCard,
                       iosMotion.focusRing
                     )}
                     tabIndex={0}
                   >
-                    <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-white/80 shadow-inner shadow-white/60 dark:bg-slate-900/70 dark:shadow-slate-950/30">
-                      <Icon className="h-6 w-6 text-slate-600 dark:text-slate-300" />
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white/80 shadow-inner shadow-white/60 dark:bg-slate-900/70 dark:shadow-slate-950/30">
+                      <Icon className="h-4 w-4 text-slate-600 dark:text-slate-300" />
                     </div>
-                    <div>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">{label}</p>
-                      <p className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+                    <div className="text-center">
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
+                      <p className="text-xl font-semibold text-slate-900 dark:text-slate-100">
                         {value}
                       </p>
                     </div>
