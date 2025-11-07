@@ -259,6 +259,8 @@ const DashboardLayout: FC = () => {
   const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(mockNotificationPreferences);
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>("All Status");
+  const [calendarSelectedDate, setCalendarSelectedDate] = useState(new Date());
+  const [calendarViewMode, setCalendarViewMode] = useState<'month' | 'week' | 'day'>('month');
 
   // Toggle password visibility
   const togglePasswordVisibility = (credentialId: string) => {
@@ -1849,12 +1851,9 @@ const DashboardLayout: FC = () => {
   };
 
   const renderCalendarView = () => {
-    const [selectedDate, setSelectedDate] = useState(new Date());
-    const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
-    
     // Get current month/year
-    const currentMonth = selectedDate.getMonth();
-    const currentYear = selectedDate.getFullYear();
+    const currentMonth = calendarSelectedDate.getMonth();
+    const currentYear = calendarSelectedDate.getFullYear();
     
     // Get days in month
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
@@ -1885,11 +1884,11 @@ const DashboardLayout: FC = () => {
     
     // Month navigation
     const previousMonth = () => {
-      setSelectedDate(new Date(currentYear, currentMonth - 1, 1));
+      setCalendarSelectedDate(new Date(currentYear, currentMonth - 1, 1));
     };
     
     const nextMonth = () => {
-      setSelectedDate(new Date(currentYear, currentMonth + 1, 1));
+      setCalendarSelectedDate(new Date(currentYear, currentMonth + 1, 1));
     };
     
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -1950,7 +1949,7 @@ const DashboardLayout: FC = () => {
                   </svg>
                 </button>
                 <button
-                  onClick={() => setSelectedDate(new Date())}
+                  onClick={() => setCalendarSelectedDate(new Date())}
                   className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
                 >
                   Today
