@@ -2,6 +2,7 @@
 
 import {
   ArrowLeftIcon,
+  Bars3Icon,
   BellAlertIcon,
   BellIcon,
   BuildingOfficeIcon,
@@ -35,6 +36,7 @@ import {
   UserCircleIcon,
   UserGroupIcon,
   XCircleIcon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { CheckCircleIcon } from "@heroicons/react/24/solid";
 import type { FC } from "react";
@@ -316,6 +318,7 @@ const DashboardLayout: FC = () => {
     windSpeed: number;
   } | null>(null);
   const [isLoadingWeather, setIsLoadingWeather] = useState<boolean>(true);
+  const [showMobileMenu, setShowMobileMenu] = useState<boolean>(false);
 
   // Toggle password visibility
   const togglePasswordVisibility = (credentialId: string) => {
@@ -5256,7 +5259,98 @@ const DashboardLayout: FC = () => {
         </aside>
 
         <main className="flex flex-1 flex-col overflow-hidden">
-          <header className="sticky top-0 z-20 border-b border-white/60 bg-white/70 px-4 py-4 backdrop-blur-md shadow-lg shadow-slate-900/5 dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20 md:px-8">
+          {/* Mobile Header with Hamburger Menu - Only visible on small screens */}
+          <header className="sticky top-0 z-30 border-b border-white/60 bg-white/70 px-4 py-3 backdrop-blur-md shadow-lg shadow-slate-900/5 dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20 md:hidden">
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setShowMobileMenu(true)}
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/60 bg-white/80 shadow-md transition hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/70 dark:hover:bg-slate-800/70"
+              >
+                <Bars3Icon className="h-6 w-6 text-slate-600 dark:text-slate-300" />
+              </button>
+              <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                Client Manager
+              </h1>
+              <div className="w-10" /> {/* Spacer for centering */}
+            </div>
+          </header>
+
+          {/* Mobile Slide-out Navigation Drawer */}
+          {showMobileMenu && (
+            <>
+              {/* Backdrop */}
+              <div
+                className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
+                onClick={() => setShowMobileMenu(false)}
+              />
+              
+              {/* Drawer */}
+              <aside className="fixed left-0 top-0 z-50 h-full w-3/4 max-w-sm border-r border-white/60 bg-white/90 backdrop-blur-md shadow-2xl dark:border-slate-800/60 dark:bg-slate-900/90 md:hidden">
+                <div className="flex h-full flex-col">
+                  {/* Drawer Header */}
+                  <div className="flex items-center justify-between border-b border-white/60 px-6 py-4 dark:border-slate-800/60">
+                    <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+                      Menu
+                    </h2>
+                    <button
+                      type="button"
+                      onClick={() => setShowMobileMenu(false)}
+                      className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/60 bg-white/80 shadow-md transition hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/70 dark:hover:bg-slate-800/70"
+                    >
+                      <XMarkIcon className="h-6 w-6 text-slate-600 dark:text-slate-300" />
+                    </button>
+                  </div>
+
+                  {/* Navigation Items */}
+                  <nav className="flex-1 overflow-y-auto px-4 py-6">
+                    <ul className="space-y-2">
+                      {navItems.map(({ label, icon: Icon }) => (
+                        <li key={label}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveNavItem(label);
+                              setShowMobileMenu(false);
+                            }}
+                            className={classNames(
+                              "group relative flex w-full items-center gap-4 rounded-xl px-4 py-3 text-left transition-all",
+                              activeNavItem === label
+                                ? "bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-slate-900 shadow-md shadow-slate-900/5 dark:from-blue-500/20 dark:to-purple-500/20 dark:text-slate-100"
+                                : "text-slate-600 hover:bg-white/50 dark:text-slate-400 dark:hover:bg-slate-800/50"
+                            )}
+                          >
+                            <Icon
+                              className={classNames(
+                                "h-6 w-6 transition-transform group-hover:scale-110",
+                                activeNavItem === label
+                                  ? "text-blue-600 dark:text-blue-400"
+                                  : "text-slate-500 dark:text-slate-400"
+                              )}
+                            />
+                            <span className="text-base font-medium">{label}</span>
+                            {activeNavItem === label && (
+                              <div className="ml-auto h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400" />
+                            )}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </nav>
+
+                  {/* Drawer Footer */}
+                  <div className="border-t border-white/60 px-6 py-4 dark:border-slate-800/60">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Client Manager v1.0
+                    </p>
+                  </div>
+                </div>
+              </aside>
+            </>
+          )}
+
+          {/* Desktop Header - Hidden on mobile */}
+          <header className="sticky top-0 z-20 border-b border-white/60 bg-white/70 px-4 py-4 backdrop-blur-md shadow-lg shadow-slate-900/5 dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20 hidden md:block md:px-8">
             <div className="flex items-center gap-4 md:gap-6">
               <div className="flex flex-1 items-center rounded-full border border-white/60 bg-white/80 px-4 py-2 shadow-inner shadow-white/40 transition focus-within:border-white focus-within:ring-2 focus-within:ring-blue-200/60 focus-within:ring-offset-2 focus-within:ring-offset-white/70 dark:border-slate-700/60 dark:bg-slate-900/70 dark:shadow-slate-950/30 dark:focus-within:ring-offset-slate-900">
                 <MagnifyingGlassIcon className="mr-3 h-5 w-5 text-slate-400 dark:text-slate-500" />
