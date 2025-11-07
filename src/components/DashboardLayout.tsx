@@ -539,7 +539,8 @@ const DashboardLayout: FC = () => {
 
             <div className="mt-4 flex gap-2">
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   setSelectedClientId(client.id);
                   setClientView('detail');
                 }}
@@ -547,8 +548,24 @@ const DashboardLayout: FC = () => {
               >
                 View Details
               </button>
-              <button className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-blue-600/25 transition-all hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600">
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Edit functionality - could be added later
+                  alert('Edit functionality coming soon!');
+                }}
+                className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-blue-600/25 transition-all hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+              >
                 Edit
+              </button>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteClient(client.id);
+                }}
+                className="rounded-2xl bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-red-600/25 transition-all hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600"
+              >
+                Delete
               </button>
             </div>
           </div>
@@ -840,6 +857,61 @@ const DashboardLayout: FC = () => {
       }
     } catch (error) {
       console.error('Error adding client:', error);
+      alert('Network error. Please check your connection and try again.');
+    }
+  };
+
+  const handleDeleteClient = async (clientId: string) => {
+    try {
+      const token = getAccessToken();
+      if (!token) {
+        console.error('No token for deleting client');
+        alert('Authentication error. Please log in again.');
+        return;
+      }
+
+      // Confirm before deleting
+      const client = clients.find(c => c.id === clientId);
+      if (!client) return;
+      
+      const confirmed = window.confirm(`Are you sure you want to delete ${client.name}? This action cannot be undone.`);
+      if (!confirmed) return;
+
+      console.log('Attempting to delete client:', clientId);
+
+      const response = await fetch(`/api/clients?id=${clientId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      console.log('Delete client response status:', response.status);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Delete client response data:', data);
+        
+        if (data.success) {
+          setClients(prev => prev.filter(c => c.id !== clientId));
+          // If we're viewing this client in detail, go back to list
+          if (selectedClientId === clientId) {
+            setClientView('list');
+            setSelectedClientId('');
+          }
+          console.log('Client deleted successfully');
+          alert('Client deleted successfully!');
+        } else {
+          console.error('API returned success=false:', data);
+          alert('Failed to delete client: ' + (data.error || 'Unknown error'));
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Failed to delete client:', response.status, errorData);
+        alert(`Failed to delete client: ${errorData.error || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error deleting client:', error);
       alert('Network error. Please check your connection and try again.');
     }
   };

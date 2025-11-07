@@ -186,3 +186,80 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    console.log('DELETE: Delete client called');
+    
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('DELETE: No auth header or invalid format');
+      return NextResponse.json(
+        { success: false, error: 'Authorization token required' },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.substring(7);
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      console.log('DELETE: JWT_SECRET not found');
+      return NextResponse.json(
+        { success: false, error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
+
+    // Verify JWT token
+    try {
+      const decoded = jwt.verify(token, jwtSecret);
+      console.log('DELETE: JWT verified for user:', (decoded as any).email);
+    } catch (error) {
+      console.log('DELETE: JWT verification failed:', error);
+      return NextResponse.json(
+        { success: false, error: 'Invalid or expired token' },
+        { status: 401 }
+      );
+    }
+
+    // Get client ID from URL search params
+    const { searchParams } = new URL(request.url);
+    const clientId = searchParams.get('id');
+
+    if (!clientId) {
+      console.log('DELETE: Missing client ID');
+      return NextResponse.json(
+        { success: false, error: 'Client ID is required' },
+        { status: 400 }
+      );
+    }
+
+    console.log('DELETE: Deleting client with ID:', clientId);
+
+    const client = new Client({ connectionString: getDatabaseUrl() });
+    await client.connect();
+    console.log('DELETE: Database connected');
+
+    // Delete the client
+    const deleteQuery = 'DELETE FROM clients WHERE id = $1 RETURNING id';
+    const result = await client.query(deleteQuery, [clientId]);
+    await client.end();
+
+    if (result.rowCount === 0) {
+      console.log('DELETE: Client not found');
+      return NextResponse.json(
+        { success: false, error: 'Client not found' },
+        { status: 404 }
+      );
+    }
+
+    console.log('DELETE: Client deleted successfully');
+    return NextResponse.json({ success: true, message: 'Client deleted successfully' }, { status: 200 });
+  } catch (error) {
+    console.error('DELETE: Delete client error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Internal server error: ' + (error as Error).message },
+      { status: 500 }
+    );
+  }
+}
