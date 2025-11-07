@@ -3541,9 +3541,10 @@ const DashboardLayout: FC = () => {
                       </button>
                       <button
                         type="button"
-                        className="rounded-full border border-white/60 bg-white/80 px-4 py-2 text-sm font-medium text-slate-700 shadow-lg shadow-slate-900/10 hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:bg-slate-900"
+                        onClick={() => setShowAddClientModal(true)}
+                        className="rounded-full border border-blue-500/60 bg-gradient-to-r from-blue-500 to-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 hover:from-blue-600 hover:to-blue-700 hover:shadow-blue-500/40 transition-all dark:border-blue-400/60 dark:from-blue-600 dark:to-blue-700 dark:hover:from-blue-700 dark:hover:to-blue-800"
                       >
-                        New client
+                        + New Client
                       </button>
                     </div>
                   </div>
