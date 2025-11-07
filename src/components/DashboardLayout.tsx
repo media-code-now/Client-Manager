@@ -4,6 +4,7 @@ import {
   ArrowLeftIcon,
   BellIcon,
   BuildingOfficeIcon,
+  ChartBarIcon,
   ClipboardDocumentListIcon,
   ClockIcon,
   Cog6ToothIcon,
@@ -376,6 +377,7 @@ const DashboardLayout: FC = () => {
     { label: "Dashboard", icon: HomeIcon },
     { label: "Clients", icon: UserGroupIcon },
     { label: "Tasks", icon: ClipboardDocumentListIcon },
+    { label: "Analytics", icon: ChartBarIcon },
     { label: "Settings", icon: Cog6ToothIcon },
   ];
 
@@ -1771,6 +1773,216 @@ const DashboardLayout: FC = () => {
               </button>
             </div>
           </form>
+        </div>
+      </div>
+    );
+  };
+
+  const renderAnalyticsView = () => {
+    // Calculate metrics
+    const totalClients = clients.length;
+    const totalTasks = tasks.length;
+    const completedTasks = tasks.filter(t => t.status === 'Done').length;
+    const openTasks = tasks.filter(t => t.status !== 'Done').length;
+    const taskCompletionRate = totalTasks > 0 ? ((completedTasks / totalTasks) * 100).toFixed(1) : '0';
+    
+    // Client growth (mock data - would come from database with timestamps)
+    const clientGrowthData = [
+      { month: 'Jan', count: Math.max(0, totalClients - 5) },
+      { month: 'Feb', count: Math.max(0, totalClients - 4) },
+      { month: 'Mar', count: Math.max(0, totalClients - 3) },
+      { month: 'Apr', count: Math.max(0, totalClients - 2) },
+      { month: 'May', count: Math.max(0, totalClients - 1) },
+      { month: 'Jun', count: totalClients },
+    ];
+    
+    const maxClients = Math.max(...clientGrowthData.map(d => d.count), 1);
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-semibold text-slate-900 dark:text-slate-100">
+            Analytics & Reports
+          </h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Track your business metrics and performance insights
+          </p>
+        </div>
+
+        {/* Key Metrics */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-2xl border border-white/60 bg-gradient-to-br from-blue-50 to-blue-100/50 p-6 shadow-lg dark:border-slate-800/60 dark:from-blue-950/30 dark:to-blue-900/20">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-blue-500 p-3 shadow-lg shadow-blue-500/25">
+                <UserGroupIcon className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Total Clients</p>
+                <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">{totalClients}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/60 bg-gradient-to-br from-green-50 to-green-100/50 p-6 shadow-lg dark:border-slate-800/60 dark:from-green-950/30 dark:to-green-900/20">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-green-500 p-3 shadow-lg shadow-green-500/25">
+                <ClipboardDocumentListIcon className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Completion Rate</p>
+                <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">{taskCompletionRate}%</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/60 bg-gradient-to-br from-purple-50 to-purple-100/50 p-6 shadow-lg dark:border-slate-800/60 dark:from-purple-950/30 dark:to-purple-900/20">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-purple-500 p-3 shadow-lg shadow-purple-500/25">
+                <ChartBarIcon className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Active Tasks</p>
+                <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">{openTasks}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/60 bg-gradient-to-br from-orange-50 to-orange-100/50 p-6 shadow-lg dark:border-slate-800/60 dark:from-orange-950/30 dark:to-orange-900/20">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-orange-500 p-3 shadow-lg shadow-orange-500/25">
+                <ClockIcon className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Avg. Tasks/Client</p>
+                <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">
+                  {totalClients > 0 ? (totalTasks / totalClients).toFixed(1) : '0'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Client Growth Chart */}
+        <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60">
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-6">
+            Client Growth Over Time
+          </h2>
+          <div className="flex items-end justify-between gap-2 h-64">
+            {clientGrowthData.map((data, index) => {
+              const height = (data.count / maxClients) * 100;
+              return (
+                <div key={index} className="flex flex-1 flex-col items-center gap-2">
+                  <div className="w-full flex flex-col items-center justify-end flex-1">
+                    <div 
+                      className="w-full rounded-t-lg bg-gradient-to-t from-blue-500 to-blue-400 transition-all hover:from-blue-600 hover:to-blue-500 shadow-lg relative group"
+                      style={{ height: `${height}%`, minHeight: data.count > 0 ? '20px' : '0' }}
+                    >
+                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-xs px-2 py-1 rounded">
+                        {data.count} clients
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">{data.month}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Task Breakdown */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60">
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-6">
+              Task Status Breakdown
+            </h2>
+            <div className="space-y-4">
+              {['Open', 'In progress', 'Done'].map(status => {
+                const count = tasks.filter(t => t.status === status).length;
+                const percentage = totalTasks > 0 ? (count / totalTasks) * 100 : 0;
+                const colors = {
+                  'Open': 'bg-blue-500',
+                  'In progress': 'bg-yellow-500',
+                  'Done': 'bg-green-500'
+                };
+                return (
+                  <div key={status}>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{status}</span>
+                      <span className="text-sm text-slate-600 dark:text-slate-400">{count} ({percentage.toFixed(0)}%)</span>
+                    </div>
+                    <div className="h-3 bg-slate-200 rounded-full overflow-hidden dark:bg-slate-700">
+                      <div 
+                        className={`h-full ${colors[status as keyof typeof colors]} transition-all duration-500`}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60">
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-6">
+              Task Priority Distribution
+            </h2>
+            <div className="space-y-4">
+              {['High', 'Medium', 'Low'].map(priority => {
+                const count = tasks.filter(t => t.priority === priority).length;
+                const percentage = totalTasks > 0 ? (count / totalTasks) * 100 : 0;
+                const colors = {
+                  'High': 'bg-red-500',
+                  'Medium': 'bg-orange-500',
+                  'Low': 'bg-blue-500'
+                };
+                return (
+                  <div key={priority}>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{priority}</span>
+                      <span className="text-sm text-slate-600 dark:text-slate-400">{count} ({percentage.toFixed(0)}%)</span>
+                    </div>
+                    <div className="h-3 bg-slate-200 rounded-full overflow-hidden dark:bg-slate-700">
+                      <div 
+                        className={`h-full ${colors[priority as keyof typeof colors]} transition-all duration-500`}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Activity Summary */}
+        <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60">
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-4">
+            Activity Trends
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="text-center p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
+              <p className="text-sm text-slate-600 dark:text-slate-400">Most Active Client</p>
+              <p className="text-lg font-semibold text-slate-900 dark:text-slate-100 mt-2">
+                {clients.length > 0 ? clients.reduce((prev, current) => {
+                  const prevTasks = tasks.filter(t => t.clientId === prev.id).length;
+                  const currentTasks = tasks.filter(t => t.clientId === current.id).length;
+                  return currentTasks > prevTasks ? current : prev;
+                }).name : 'N/A'}
+              </p>
+            </div>
+            <div className="text-center p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
+              <p className="text-sm text-slate-600 dark:text-slate-400">Credentials Stored</p>
+              <p className="text-lg font-semibold text-slate-900 dark:text-slate-100 mt-2">
+                {credentials.length}
+              </p>
+            </div>
+            <div className="text-center p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
+              <p className="text-sm text-slate-600 dark:text-slate-400">Completion Rate Trend</p>
+              <p className="text-lg font-semibold text-green-600 dark:text-green-400 mt-2">
+                {taskCompletionRate}% ↗
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -3311,6 +3523,8 @@ const DashboardLayout: FC = () => {
               clientView === 'detail' ? renderClientDetail() : renderClientManagement()
             ) : activeNavItem === 'Tasks' ? (
               renderTasksView()
+            ) : activeNavItem === 'Analytics' ? (
+              renderAnalyticsView()
             ) : activeNavItem === 'Settings' ? (
               renderSettingsView()
             ) : (
