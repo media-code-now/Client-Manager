@@ -3486,9 +3486,18 @@ const DashboardLayout: FC = () => {
                               {task.title}
                             </p>
                             <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
-                              <span className="rounded-full bg-white/80 px-3 py-1 dark:bg-slate-900/60 dark:text-slate-300">
+                              <button
+                                onClick={() => {
+                                  if (client) {
+                                    setSelectedClientId(client.id);
+                                    setClientView('detail');
+                                    setActiveNavItem('Clients');
+                                  }
+                                }}
+                                className="rounded-full bg-white/80 px-3 py-1 hover:bg-blue-100 hover:text-blue-700 transition-colors cursor-pointer dark:bg-slate-900/60 dark:text-slate-300 dark:hover:bg-blue-900/50 dark:hover:text-blue-300"
+                              >
                                 {client?.name ?? "Unknown client"}
-                              </span>
+                              </button>
                               <span>{todayLabel(task.dueDate)}</span>
                               <span className="rounded-full bg-white/60 px-2 py-0.5 uppercase tracking-wide dark:bg-slate-900/50">
                                 {task.priority}
