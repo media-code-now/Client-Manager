@@ -4,6 +4,7 @@ import {
   ArrowLeftIcon,
   BellIcon,
   BuildingOfficeIcon,
+  CalendarIcon,
   ChartBarIcon,
   ClipboardDocumentListIcon,
   ClockIcon,
@@ -377,6 +378,7 @@ const DashboardLayout: FC = () => {
     { label: "Dashboard", icon: HomeIcon },
     { label: "Clients", icon: UserGroupIcon },
     { label: "Tasks", icon: ClipboardDocumentListIcon },
+    { label: "Calendar", icon: CalendarIcon },
     { label: "Analytics", icon: ChartBarIcon },
     { label: "Settings", icon: Cog6ToothIcon },
   ];
@@ -1773,6 +1775,293 @@ const DashboardLayout: FC = () => {
               </button>
             </div>
           </form>
+        </div>
+      </div>
+    );
+  };
+
+  const renderCalendarView = () => {
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
+    
+    // Get current month/year
+    const currentMonth = selectedDate.getMonth();
+    const currentYear = selectedDate.getFullYear();
+    
+    // Get days in month
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
+    
+    // Create calendar days array
+    const calendarDays: (number | null)[] = [];
+    for (let i = 0; i < firstDayOfMonth; i++) {
+      calendarDays.push(null);
+    }
+    for (let i = 1; i <= daysInMonth; i++) {
+      calendarDays.push(i);
+    }
+    
+    // Get tasks for a specific date
+    const getTasksForDate = (day: number) => {
+      const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      return tasks.filter(task => task.dueDate?.startsWith(dateStr));
+    };
+    
+    // Get today's date
+    const today = new Date();
+    const isToday = (day: number) => {
+      return day === today.getDate() && 
+             currentMonth === today.getMonth() && 
+             currentYear === today.getFullYear();
+    };
+    
+    // Month navigation
+    const previousMonth = () => {
+      setSelectedDate(new Date(currentYear, currentMonth - 1, 1));
+    };
+    
+    const nextMonth = () => {
+      setSelectedDate(new Date(currentYear, currentMonth + 1, 1));
+    };
+    
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    
+    // Get upcoming deadlines (next 7 days)
+    const upcomingDeadlines = tasks.filter(task => {
+      if (!task.dueDate) return false;
+      const taskDate = new Date(task.dueDate);
+      const diffTime = taskDate.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays >= 0 && diffDays <= 7 && task.status !== 'Done';
+    }).sort((a, b) => {
+      if (!a.dueDate || !b.dueDate) return 0;
+      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+    });
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold text-slate-900 dark:text-slate-100">
+              Calendar
+            </h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              View tasks by date and manage your schedule
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              setTaskCreationContext("tasks");
+              setSelectedDueDate("");
+              setShowCalendar(false);
+              setShowAddTaskModal(true);
+            }}
+            className="rounded-2xl bg-blue-600 px-6 py-3 text-sm font-medium text-white shadow-lg shadow-blue-600/25 transition-all hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+          >
+            + Schedule Task
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          {/* Calendar */}
+          <div className="lg:col-span-2 rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60">
+            {/* Calendar Header */}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                {monthNames[currentMonth]} {currentYear}
+              </h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={previousMonth}
+                  className="rounded-xl bg-slate-100 p-2 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setSelectedDate(new Date())}
+                  className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                >
+                  Today
+                </button>
+                <button
+                  onClick={nextMonth}
+                  className="rounded-xl bg-slate-100 p-2 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Day names */}
+            <div className="grid grid-cols-7 gap-2 mb-2">
+              {dayNames.map(day => (
+                <div key={day} className="text-center text-sm font-semibold text-slate-600 dark:text-slate-400 py-2">
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            {/* Calendar grid */}
+            <div className="grid grid-cols-7 gap-2">
+              {calendarDays.map((day, index) => {
+                if (day === null) {
+                  return <div key={`empty-${index}`} className="aspect-square" />;
+                }
+                
+                const tasksForDay = getTasksForDate(day);
+                const isCurrentDay = isToday(day);
+                
+                return (
+                  <div
+                    key={day}
+                    className={`aspect-square rounded-xl p-2 transition-all cursor-pointer ${
+                      isCurrentDay
+                        ? 'bg-blue-500 text-white shadow-lg'
+                        : tasksForDay.length > 0
+                        ? 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700'
+                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                    }`}
+                  >
+                    <div className="flex flex-col h-full">
+                      <span className={`text-sm font-medium ${isCurrentDay ? 'text-white' : 'text-slate-900 dark:text-slate-100'}`}>
+                        {day}
+                      </span>
+                      {tasksForDay.length > 0 && (
+                        <div className="mt-auto space-y-1">
+                          {tasksForDay.slice(0, 2).map(task => (
+                            <div
+                              key={task.id}
+                              className={`text-xs truncate rounded px-1 ${
+                                isCurrentDay
+                                  ? 'bg-white/20 text-white'
+                                  : task.priority === 'High'
+                                  ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                                  : task.priority === 'Medium'
+                                  ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
+                                  : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                              }`}
+                            >
+                              {task.title}
+                            </div>
+                          ))}
+                          {tasksForDay.length > 2 && (
+                            <div className={`text-xs ${isCurrentDay ? 'text-white/80' : 'text-slate-500'}`}>
+                              +{tasksForDay.length - 2} more
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Upcoming Deadlines Sidebar */}
+          <div className="space-y-4">
+            <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
+                Upcoming Deadlines
+              </h3>
+              <div className="space-y-3">
+                {upcomingDeadlines.length === 0 ? (
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    No upcoming deadlines in the next 7 days
+                  </p>
+                ) : (
+                  upcomingDeadlines.map(task => {
+                    const client = clients.find(c => c.id === task.clientId);
+                    const daysUntil = task.dueDate 
+                      ? Math.ceil((new Date(task.dueDate).getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+                      : 0;
+                    
+                    return (
+                      <div
+                        key={task.id}
+                        className="rounded-2xl border border-white/60 bg-white/50 p-4 dark:border-slate-700/60 dark:bg-slate-800/50"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <h4 className="font-medium text-slate-900 dark:text-slate-100 text-sm">
+                            {task.title}
+                          </h4>
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            task.priority === 'High'
+                              ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                              : task.priority === 'Medium'
+                              ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
+                              : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                          }`}>
+                            {task.priority}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 mb-2">
+                          {client?.name || 'Unknown client'}
+                        </p>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className={`font-medium ${
+                            daysUntil === 0 ? 'text-red-600 dark:text-red-400' :
+                            daysUntil <= 2 ? 'text-orange-600 dark:text-orange-400' :
+                            'text-slate-600 dark:text-slate-400'
+                          }`}>
+                            {daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : `In ${daysUntil} days`}
+                          </span>
+                          <span className="text-slate-500 dark:text-slate-400">
+                            {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : ''}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="rounded-3xl border border-white/60 bg-gradient-to-br from-blue-50 to-blue-100/50 p-6 shadow-lg dark:border-slate-800/60 dark:from-blue-950/30 dark:to-blue-900/20">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
+                This Month
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-sm text-slate-600 dark:text-slate-400">Total Tasks</span>
+                  <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    {tasks.filter(t => {
+                      if (!t.dueDate) return false;
+                      const taskDate = new Date(t.dueDate);
+                      return taskDate.getMonth() === currentMonth && taskDate.getFullYear() === currentYear;
+                    }).length}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-slate-600 dark:text-slate-400">Completed</span>
+                  <span className="text-sm font-semibold text-green-600 dark:text-green-400">
+                    {tasks.filter(t => {
+                      if (!t.dueDate || t.status !== 'Done') return false;
+                      const taskDate = new Date(t.dueDate);
+                      return taskDate.getMonth() === currentMonth && taskDate.getFullYear() === currentYear;
+                    }).length}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-slate-600 dark:text-slate-400">Pending</span>
+                  <span className="text-sm font-semibold text-orange-600 dark:text-orange-400">
+                    {tasks.filter(t => {
+                      if (!t.dueDate || t.status === 'Done') return false;
+                      const taskDate = new Date(t.dueDate);
+                      return taskDate.getMonth() === currentMonth && taskDate.getFullYear() === currentYear;
+                    }).length}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -3523,6 +3812,8 @@ const DashboardLayout: FC = () => {
               clientView === 'detail' ? renderClientDetail() : renderClientManagement()
             ) : activeNavItem === 'Tasks' ? (
               renderTasksView()
+            ) : activeNavItem === 'Calendar' ? (
+              renderCalendarView()
             ) : activeNavItem === 'Analytics' ? (
               renderAnalyticsView()
             ) : activeNavItem === 'Settings' ? (
