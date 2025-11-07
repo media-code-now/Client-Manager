@@ -67,12 +67,10 @@ export async function GET(request: NextRequest) {
         status,
         email,
         phone,
-        -- tags is optional; ignore if column missing in some schemas
-        NULL as tags,
         notes,
         created_at as "createdAt",
         updated_at as "updatedAt",
-        COALESCE(last_activity_at, updated_at) as "lastActivityAt"
+        updated_at as "lastActivityAt"
       FROM clients 
       ORDER BY updated_at DESC
     `;
