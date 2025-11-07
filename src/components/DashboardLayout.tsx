@@ -2,10 +2,12 @@
 
 import {
   ArrowLeftIcon,
+  BellAlertIcon,
   BellIcon,
   BuildingOfficeIcon,
   CalendarIcon,
   ChartBarIcon,
+  CheckBadgeIcon,
   ClipboardDocumentListIcon,
   ClockIcon,
   Cog6ToothIcon,
@@ -18,6 +20,7 @@ import {
   EyeIcon,
   EyeSlashIcon,
   HomeIcon,
+  InformationCircleIcon,
   KeyIcon,
   LanguageIcon,
   MagnifyingGlassIcon,
@@ -28,6 +31,7 @@ import {
   SunIcon,
   UserCircleIcon,
   UserGroupIcon,
+  XCircleIcon,
 } from "@heroicons/react/24/outline";
 import { CheckCircleIcon } from "@heroicons/react/24/solid";
 import type { FC } from "react";
@@ -84,6 +88,18 @@ type Invoice = {
   dueDate: string;
   description: string;
   items?: { description: string; quantity: number; rate: number }[];
+};
+
+type Notification = {
+  id: string;
+  type: 'activity' | 'reminder' | 'alert' | 'success' | 'warning' | 'error';
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+  actionUrl?: string;
+  relatedClientId?: string;
+  relatedTaskId?: string;
 };
 
 type UserProfile = {
@@ -261,6 +277,8 @@ const DashboardLayout: FC = () => {
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>("All Status");
   const [calendarSelectedDate, setCalendarSelectedDate] = useState(new Date());
   const [calendarViewMode, setCalendarViewMode] = useState<'month' | 'week' | 'day'>('month');
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notificationFilter, setNotificationFilter] = useState<string>("All Types");
 
   // Toggle password visibility
   const togglePasswordVisibility = (credentialId: string) => {
@@ -401,6 +419,76 @@ const DashboardLayout: FC = () => {
         },
       ];
       setInvoices(sampleInvoices);
+
+      // Initialize sample notifications
+      const sampleNotifications: Notification[] = [
+        {
+          id: 'notif-1',
+          type: 'reminder',
+          title: 'Task Due Soon',
+          message: 'Your task "Complete project proposal" is due in 2 hours',
+          timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+          read: false,
+        },
+        {
+          id: 'notif-2',
+          type: 'activity',
+          title: 'New Client Added',
+          message: `${clients[0]?.name || 'A new client'} was added to your CRM`,
+          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+          read: false,
+          relatedClientId: clients[0]?.id,
+        },
+        {
+          id: 'notif-3',
+          type: 'success',
+          title: 'Payment Received',
+          message: 'Invoice INV-0001 ($5,000) has been paid',
+          timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+          read: true,
+        },
+        {
+          id: 'notif-4',
+          type: 'alert',
+          title: 'Overdue Invoice',
+          message: 'Invoice INV-0004 is 10 days overdue. Follow up with client.',
+          timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+          read: false,
+        },
+        {
+          id: 'notif-5',
+          type: 'activity',
+          title: 'Task Completed',
+          message: 'You completed "Update website content"',
+          timestamp: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
+          read: true,
+        },
+        {
+          id: 'notif-6',
+          type: 'warning',
+          title: 'Low Storage Space',
+          message: 'Your storage is 85% full. Consider upgrading your plan.',
+          timestamp: new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString(),
+          read: true,
+        },
+        {
+          id: 'notif-7',
+          type: 'reminder',
+          title: 'Meeting Reminder',
+          message: 'Client meeting scheduled for tomorrow at 10:00 AM',
+          timestamp: new Date(Date.now() - 96 * 60 * 60 * 1000).toISOString(),
+          read: true,
+        },
+        {
+          id: 'notif-8',
+          type: 'error',
+          title: 'Sync Failed',
+          message: 'Failed to sync calendar events. Please try again.',
+          timestamp: new Date(Date.now() - 120 * 60 * 60 * 1000).toISOString(),
+          read: true,
+        },
+      ];
+      setNotifications(sampleNotifications);
     }
   }, [clients]);
 
@@ -450,6 +538,7 @@ const DashboardLayout: FC = () => {
     { label: "Calendar", icon: CalendarIcon },
     { label: "Invoices", icon: CurrencyDollarIcon },
     { label: "Analytics", icon: ChartBarIcon },
+    { label: "Notifications", icon: BellIcon },
     { label: "Settings", icon: Cog6ToothIcon },
   ];
 
@@ -2689,6 +2778,273 @@ const DashboardLayout: FC = () => {
     );
   };
 
+  const renderNotificationsView = () => {
+    // Filter notifications
+    const filteredNotifications = notificationFilter === 'All Types'
+      ? notifications
+      : notificationFilter === 'Unread'
+      ? notifications.filter(n => !n.read)
+      : notifications.filter(n => n.type === notificationFilter.toLowerCase());
+
+    // Group notifications
+    const unreadCount = notifications.filter(n => !n.read).length;
+    const todayNotifications = filteredNotifications.filter(n => {
+      const notifDate = new Date(n.timestamp);
+      const today = new Date();
+      return notifDate.toDateString() === today.toDateString();
+    });
+    const yesterdayNotifications = filteredNotifications.filter(n => {
+      const notifDate = new Date(n.timestamp);
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      return notifDate.toDateString() === yesterday.toDateString();
+    });
+    const olderNotifications = filteredNotifications.filter(n => {
+      const notifDate = new Date(n.timestamp);
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      return notifDate < yesterday;
+    });
+
+    const handleMarkAsRead = (notificationId: string) => {
+      setNotifications(notifications.map(n => 
+        n.id === notificationId ? { ...n, read: true } : n
+      ));
+    };
+
+    const handleMarkAllAsRead = () => {
+      setNotifications(notifications.map(n => ({ ...n, read: true })));
+    };
+
+    const handleDeleteNotification = (notificationId: string) => {
+      setNotifications(notifications.filter(n => n.id !== notificationId));
+    };
+
+    const getNotificationIcon = (type: Notification['type']) => {
+      switch (type) {
+        case 'activity':
+          return <BellIcon className="h-5 w-5" />;
+        case 'reminder':
+          return <ClockIcon className="h-5 w-5" />;
+        case 'alert':
+          return <BellAlertIcon className="h-5 w-5" />;
+        case 'success':
+          return <CheckBadgeIcon className="h-5 w-5" />;
+        case 'warning':
+          return <ExclamationTriangleIcon className="h-5 w-5" />;
+        case 'error':
+          return <XCircleIcon className="h-5 w-5" />;
+        default:
+          return <InformationCircleIcon className="h-5 w-5" />;
+      }
+    };
+
+    const getNotificationColor = (type: Notification['type']) => {
+      switch (type) {
+        case 'activity':
+          return 'from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/20 text-blue-700 dark:text-blue-400';
+        case 'reminder':
+          return 'from-purple-50 to-purple-100/50 dark:from-purple-950/30 dark:to-purple-900/20 text-purple-700 dark:text-purple-400';
+        case 'alert':
+          return 'from-orange-50 to-orange-100/50 dark:from-orange-950/30 dark:to-orange-900/20 text-orange-700 dark:text-orange-400';
+        case 'success':
+          return 'from-green-50 to-green-100/50 dark:from-green-950/30 dark:to-green-900/20 text-green-700 dark:text-green-400';
+        case 'warning':
+          return 'from-yellow-50 to-yellow-100/50 dark:from-yellow-950/30 dark:to-yellow-900/20 text-yellow-700 dark:text-yellow-400';
+        case 'error':
+          return 'from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/20 text-red-700 dark:text-red-400';
+        default:
+          return 'from-slate-50 to-slate-100/50 dark:from-slate-950/30 dark:to-slate-900/20 text-slate-700 dark:text-slate-400';
+      }
+    };
+
+    const formatTimestamp = (timestamp: string) => {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+
+      if (diffMins < 1) return 'Just now';
+      if (diffMins < 60) return `${diffMins} min${diffMins !== 1 ? 's' : ''} ago`;
+      if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+      if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+      return date.toLocaleDateString();
+    };
+
+    const renderNotificationGroup = (title: string, notifs: Notification[]) => {
+      if (notifs.length === 0) return null;
+
+      return (
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            {title}
+          </h3>
+          {notifs.map(notification => (
+            <div
+              key={notification.id}
+              className={`relative flex gap-4 rounded-2xl border p-4 transition-all ${
+                notification.read
+                  ? 'border-slate-200/60 bg-white/50 dark:border-slate-700/60 dark:bg-slate-800/50'
+                  : 'border-blue-200/60 bg-blue-50/50 dark:border-blue-800/60 dark:bg-blue-950/30 shadow-lg'
+              }`}
+            >
+              {!notification.read && (
+                <div className="absolute right-4 top-4">
+                  <div className="h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400"></div>
+                </div>
+              )}
+              
+              <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${getNotificationColor(notification.type)}`}>
+                {getNotificationIcon(notification.type)}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <p className="font-semibold text-slate-900 dark:text-slate-100">
+                      {notification.title}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                      {notification.message}
+                    </p>
+                    <p className="mt-2 text-xs text-slate-500 dark:text-slate-500">
+                      {formatTimestamp(notification.timestamp)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex gap-2">
+                  {!notification.read && (
+                    <button
+                      onClick={() => handleMarkAsRead(notification.id)}
+                      className="rounded-lg bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
+                    >
+                      Mark as read
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleDeleteNotification(notification.id)}
+                    className="rounded-lg bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    };
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold text-slate-900 dark:text-slate-100">
+              Notifications
+            </h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Stay updated with your activity feed, reminders, and alerts
+            </p>
+          </div>
+          {unreadCount > 0 && (
+            <button
+              onClick={handleMarkAllAsRead}
+              className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-900/20 transition-all hover:bg-blue-700 dark:bg-blue-500"
+            >
+              <CheckBadgeIcon className="h-5 w-5" />
+              Mark All Read
+            </button>
+          )}
+        </div>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="rounded-2xl border border-white/60 bg-gradient-to-br from-blue-50 to-blue-100/50 p-6 shadow-lg dark:border-slate-800/60 dark:from-blue-950/30 dark:to-blue-900/20">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-blue-200/50 p-2 dark:bg-blue-900/30">
+                <BellIcon className="h-5 w-5 text-blue-700 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-blue-600 dark:text-blue-400">Total</p>
+                <p className="text-xl font-bold text-blue-900 dark:text-blue-100">
+                  {notifications.length}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/60 bg-gradient-to-br from-orange-50 to-orange-100/50 p-6 shadow-lg dark:border-slate-800/60 dark:from-orange-950/30 dark:to-orange-900/20">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-orange-200/50 p-2 dark:bg-orange-900/30">
+                <BellAlertIcon className="h-5 w-5 text-orange-700 dark:text-orange-400" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-orange-600 dark:text-orange-400">Unread</p>
+                <p className="text-xl font-bold text-orange-900 dark:text-orange-100">
+                  {unreadCount}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/60 bg-gradient-to-br from-purple-50 to-purple-100/50 p-6 shadow-lg dark:border-slate-800/60 dark:from-purple-950/30 dark:to-purple-900/20">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-purple-200/50 p-2 dark:bg-purple-900/30">
+                <ClockIcon className="h-5 w-5 text-purple-700 dark:text-purple-400" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-purple-600 dark:text-purple-400">Reminders</p>
+                <p className="text-xl font-bold text-purple-900 dark:text-purple-100">
+                  {notifications.filter(n => n.type === 'reminder').length}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filter */}
+        <div className="flex items-center gap-4">
+          <select
+            value={notificationFilter}
+            onChange={(e) => setNotificationFilter(e.target.value)}
+            className="rounded-xl border-slate-300 bg-white/70 px-4 py-2 text-sm backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/60"
+          >
+            <option>All Types</option>
+            <option>Unread</option>
+            <option>Activity</option>
+            <option>Reminder</option>
+            <option>Alert</option>
+            <option>Success</option>
+            <option>Warning</option>
+            <option>Error</option>
+          </select>
+        </div>
+
+        {/* Notifications List */}
+        {filteredNotifications.length === 0 ? (
+          <div className="rounded-3xl border border-white/60 bg-white/70 p-12 text-center shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60">
+            <BellIcon className="mx-auto h-12 w-12 text-slate-400" />
+            <h3 className="mt-2 text-sm font-medium text-slate-900 dark:text-slate-100">
+              No notifications
+            </h3>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              You're all caught up!
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-8">
+            {renderNotificationGroup('Today', todayNotifications)}
+            {renderNotificationGroup('Yesterday', yesterdayNotifications)}
+            {renderNotificationGroup('Older', olderNotifications)}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderSettingsView = () => {
     const settingsTabs = [
       { id: "profile", label: "Profile & Account", icon: UserCircleIcon },
@@ -4230,6 +4586,8 @@ const DashboardLayout: FC = () => {
               renderInvoicesView()
             ) : activeNavItem === 'Analytics' ? (
               renderAnalyticsView()
+            ) : activeNavItem === 'Notifications' ? (
+              renderNotificationsView()
             ) : activeNavItem === 'Settings' ? (
               renderSettingsView()
             ) : (
