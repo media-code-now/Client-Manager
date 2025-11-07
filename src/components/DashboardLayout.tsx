@@ -10,7 +10,9 @@ import {
   ClockIcon,
   Cog6ToothIcon,
   ComputerDesktopIcon,
+  CurrencyDollarIcon,
   DevicePhoneMobileIcon,
+  DocumentTextIcon,
   EnvelopeIcon,
   ExclamationTriangleIcon,
   EyeIcon,
@@ -21,6 +23,7 @@ import {
   MagnifyingGlassIcon,
   MoonIcon,
   PaintBrushIcon,
+  PlusIcon,
   ShieldCheckIcon,
   SunIcon,
   UserCircleIcon,
@@ -69,6 +72,18 @@ type Credential = {
   password: string;
   maskedValue: string;
   url?: string;
+};
+
+type Invoice = {
+  id: string;
+  clientId: string;
+  invoiceNumber: string;
+  amount: number;
+  status: 'Draft' | 'Sent' | 'Paid' | 'Overdue';
+  issueDate: string;
+  dueDate: string;
+  description: string;
+  items?: { description: string; quantity: number; rate: number }[];
 };
 
 type UserProfile = {
@@ -221,8 +236,10 @@ const DashboardLayout: FC = () => {
   const [clientView, setClientView] = useState<"list" | "detail">("list");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [credentials, setCredentials] = useState<Credential[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [showAddTaskModal, setShowAddTaskModal] = useState<boolean>(false);
   const [showAddCredentialModal, setShowAddCredentialModal] = useState<boolean>(false);
+  const [showAddInvoiceModal, setShowAddInvoiceModal] = useState<boolean>(false);
   const [showEditTaskModal, setShowEditTaskModal] = useState<boolean>(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [taskSearchQuery, setTaskSearchQuery] = useState<string>("");
@@ -241,6 +258,7 @@ const DashboardLayout: FC = () => {
   const [appearancePreferences, setAppearancePreferences] = useState<AppearancePreferences>(mockAppearancePreferences);
   const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(mockNotificationPreferences);
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>("All Status");
 
   // Toggle password visibility
   const togglePasswordVisibility = (credentialId: string) => {
@@ -335,6 +353,55 @@ const DashboardLayout: FC = () => {
     }
   }, []);
 
+  // Initialize sample invoices when clients are loaded
+  useEffect(() => {
+    if (clients.length > 0 && invoices.length === 0) {
+      const sampleInvoices: Invoice[] = [
+        {
+          id: 'inv-1',
+          clientId: clients[0].id,
+          invoiceNumber: 'INV-0001',
+          amount: 5000,
+          status: 'Paid',
+          issueDate: '2024-01-15',
+          dueDate: '2024-02-15',
+          description: 'Website redesign project - Phase 1',
+        },
+        {
+          id: 'inv-2',
+          clientId: clients[0].id,
+          invoiceNumber: 'INV-0002',
+          amount: 3500,
+          status: 'Sent',
+          issueDate: '2024-02-01',
+          dueDate: '2024-03-01',
+          description: 'Monthly retainer - February 2024',
+        },
+        {
+          id: 'inv-3',
+          clientId: clients.length > 1 ? clients[1].id : clients[0].id,
+          invoiceNumber: 'INV-0003',
+          amount: 7500,
+          status: 'Paid',
+          issueDate: '2024-01-20',
+          dueDate: '2024-02-20',
+          description: 'Custom software development',
+        },
+        {
+          id: 'inv-4',
+          clientId: clients.length > 2 ? clients[2].id : clients[0].id,
+          invoiceNumber: 'INV-0004',
+          amount: 2000,
+          status: 'Overdue',
+          issueDate: '2024-01-10',
+          dueDate: '2024-02-10',
+          description: 'Consulting services - January 2024',
+        },
+      ];
+      setInvoices(sampleInvoices);
+    }
+  }, [clients]);
+
   // Re-fetch clients when the selectedClientId is empty (after refresh)
   useEffect(() => {
     if (clients.length > 0 && !selectedClientId) {
@@ -379,6 +446,7 @@ const DashboardLayout: FC = () => {
     { label: "Clients", icon: UserGroupIcon },
     { label: "Tasks", icon: ClipboardDocumentListIcon },
     { label: "Calendar", icon: CalendarIcon },
+    { label: "Invoices", icon: CurrencyDollarIcon },
     { label: "Analytics", icon: ChartBarIcon },
     { label: "Settings", icon: Cog6ToothIcon },
   ];
@@ -2277,6 +2345,351 @@ const DashboardLayout: FC = () => {
     );
   };
 
+  const renderInvoicesView = () => {
+    // Calculate revenue metrics
+    const totalRevenue = invoices
+      .filter(inv => inv.status === 'Paid')
+      .reduce((sum, inv) => sum + inv.amount, 0);
+    
+    const pendingRevenue = invoices
+      .filter(inv => inv.status === 'Sent')
+      .reduce((sum, inv) => sum + inv.amount, 0);
+    
+    const overdueRevenue = invoices
+      .filter(inv => inv.status === 'Overdue')
+      .reduce((sum, inv) => sum + inv.amount, 0);
+    
+    const totalInvoices = invoices.length;
+
+    // Filter invoices based on status
+    const filteredInvoices = invoiceStatusFilter === 'All Status'
+      ? invoices
+      : invoices.filter(inv => inv.status === invoiceStatusFilter);
+
+    // Calculate revenue per client
+    const revenueByClient = clients.map(client => {
+      const clientInvoices = invoices.filter(inv => inv.clientId === client.id && inv.status === 'Paid');
+      const revenue = clientInvoices.reduce((sum, inv) => sum + inv.amount, 0);
+      return { client, revenue, invoiceCount: clientInvoices.length };
+    }).filter(item => item.revenue > 0).sort((a, b) => b.revenue - a.revenue);
+
+    const handleAddInvoice = (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      const formData = new FormData(e.currentTarget);
+      
+      const newInvoice: Invoice = {
+        id: `inv-${Date.now()}`,
+        clientId: formData.get('clientId') as string,
+        invoiceNumber: `INV-${String(invoices.length + 1).padStart(4, '0')}`,
+        amount: parseFloat(formData.get('amount') as string),
+        status: 'Draft',
+        issueDate: new Date().toISOString().split('T')[0],
+        dueDate: formData.get('dueDate') as string,
+        description: formData.get('description') as string,
+        items: [],
+      };
+
+      setInvoices([...invoices, newInvoice]);
+      setShowAddInvoiceModal(false);
+    };
+
+    const handleUpdateInvoiceStatus = (invoiceId: string, newStatus: Invoice['status']) => {
+      setInvoices(invoices.map(inv => 
+        inv.id === invoiceId ? { ...inv, status: newStatus } : inv
+      ));
+    };
+
+    const getStatusColor = (status: Invoice['status']) => {
+      switch (status) {
+        case 'Draft': return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
+        case 'Sent': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+        case 'Paid': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+        case 'Overdue': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+      }
+    };
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold text-slate-900 dark:text-slate-100">
+              Invoices & Billing
+            </h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Manage invoices, track payments, and monitor revenue
+            </p>
+          </div>
+          <button
+            onClick={() => setShowAddInvoiceModal(true)}
+            className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-900/20 transition-all hover:from-blue-700 hover:to-blue-800 hover:shadow-xl hover:shadow-blue-900/30 dark:from-blue-500 dark:to-blue-600 dark:shadow-blue-500/20 dark:hover:shadow-blue-500/30"
+          >
+            <PlusIcon className="h-5 w-5" />
+            Create Invoice
+          </button>
+        </div>
+
+        {/* Revenue Summary Cards */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-2xl border border-white/60 bg-gradient-to-br from-green-50 to-green-100/50 p-6 shadow-lg dark:border-slate-800/60 dark:from-green-950/30 dark:to-green-900/20">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-green-200/50 p-2 dark:bg-green-900/30">
+                <CurrencyDollarIcon className="h-5 w-5 text-green-700 dark:text-green-400" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-green-600 dark:text-green-400">Total Revenue</p>
+                <p className="text-xl font-bold text-green-900 dark:text-green-100">
+                  ${totalRevenue.toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/60 bg-gradient-to-br from-blue-50 to-blue-100/50 p-6 shadow-lg dark:border-slate-800/60 dark:from-blue-950/30 dark:to-blue-900/20">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-blue-200/50 p-2 dark:bg-blue-900/30">
+                <ClockIcon className="h-5 w-5 text-blue-700 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-blue-600 dark:text-blue-400">Pending</p>
+                <p className="text-xl font-bold text-blue-900 dark:text-blue-100">
+                  ${pendingRevenue.toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/60 bg-gradient-to-br from-red-50 to-red-100/50 p-6 shadow-lg dark:border-slate-800/60 dark:from-red-950/30 dark:to-red-900/20">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-red-200/50 p-2 dark:bg-red-900/30">
+                <ExclamationTriangleIcon className="h-5 w-5 text-red-700 dark:text-red-400" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-red-600 dark:text-red-400">Overdue</p>
+                <p className="text-xl font-bold text-red-900 dark:text-red-100">
+                  ${overdueRevenue.toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/60 bg-gradient-to-br from-slate-50 to-slate-100/50 p-6 shadow-lg dark:border-slate-800/60 dark:from-slate-950/30 dark:to-slate-900/20">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-slate-200/50 p-2 dark:bg-slate-900/30">
+                <DocumentTextIcon className="h-5 w-5 text-slate-700 dark:text-slate-400" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Total Invoices</p>
+                <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{totalInvoices}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="flex items-center gap-4">
+          <select
+            value={invoiceStatusFilter}
+            onChange={(e) => setInvoiceStatusFilter(e.target.value)}
+            className="rounded-xl border-slate-300 bg-white/70 px-4 py-2 text-sm backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/60"
+          >
+            <option>All Status</option>
+            <option>Draft</option>
+            <option>Sent</option>
+            <option>Paid</option>
+            <option>Overdue</option>
+          </select>
+        </div>
+
+        {/* Invoices List */}
+        <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg shadow-slate-900/5 backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20">
+          <h2 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">Invoices</h2>
+          
+          {filteredInvoices.length === 0 ? (
+            <div className="py-12 text-center">
+              <CurrencyDollarIcon className="mx-auto h-12 w-12 text-slate-400" />
+              <h3 className="mt-2 text-sm font-medium text-slate-900 dark:text-slate-100">No invoices</h3>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Get started by creating your first invoice.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredInvoices.map((invoice) => {
+                const client = clients.find(c => c.id === invoice.clientId);
+                return (
+                  <div
+                    key={invoice.id}
+                    className="flex items-center justify-between rounded-2xl border border-slate-200/60 bg-white/50 p-4 transition-all hover:shadow-md dark:border-slate-700/60 dark:bg-slate-800/50"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/20">
+                        <DocumentTextIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-900 dark:text-slate-100">
+                          {invoice.invoiceNumber}
+                        </p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                          {client?.name || 'Unknown Client'} • Due: {new Date(invoice.dueDate).toLocaleDateString()}
+                        </p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500">
+                          {invoice.description}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                          ${invoice.amount.toLocaleString()}
+                        </p>
+                        <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(invoice.status)}`}>
+                          {invoice.status}
+                        </span>
+                      </div>
+                      
+                      {invoice.status !== 'Paid' && (
+                        <div className="relative">
+                          <select
+                            value={invoice.status}
+                            onChange={(e) => handleUpdateInvoiceStatus(invoice.id, e.target.value as Invoice['status'])}
+                            className="rounded-xl border-slate-300 bg-white/70 px-3 py-1 text-sm backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/60"
+                          >
+                            <option value="Draft">Draft</option>
+                            <option value="Sent">Sent</option>
+                            <option value="Paid">Paid</option>
+                            <option value="Overdue">Overdue</option>
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Revenue by Client */}
+        {revenueByClient.length > 0 && (
+          <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg shadow-slate-900/5 backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20">
+            <h2 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">Revenue by Client</h2>
+            <div className="space-y-3">
+              {revenueByClient.map(({ client, revenue, invoiceCount }) => (
+                <div
+                  key={client.id}
+                  className="flex items-center justify-between rounded-2xl border border-slate-200/60 bg-white/50 p-4 dark:border-slate-700/60 dark:bg-slate-800/50"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-green-100 to-green-200 dark:from-green-950/30 dark:to-green-900/20">
+                      <span className="text-sm font-bold text-green-700 dark:text-green-400">
+                        {client.name.charAt(0)}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="font-medium text-slate-900 dark:text-slate-100">{client.name}</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        {invoiceCount} invoice{invoiceCount !== 1 ? 's' : ''} paid
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-lg font-bold text-green-600 dark:text-green-400">
+                    ${revenue.toLocaleString()}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Add Invoice Modal */}
+        {showAddInvoiceModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-lg rounded-3xl border border-white/60 bg-white/90 p-6 shadow-2xl backdrop-blur-xl dark:border-slate-800/60 dark:bg-slate-900/90">
+              <h2 className="mb-4 text-2xl font-bold text-slate-900 dark:text-slate-100">
+                Create Invoice
+              </h2>
+              <form onSubmit={handleAddInvoice} className="space-y-4">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Client
+                  </label>
+                  <select
+                    name="clientId"
+                    required
+                    className="w-full rounded-xl border-slate-300 bg-white/70 px-4 py-2 backdrop-blur-md dark:border-slate-700 dark:bg-slate-800/60"
+                  >
+                    <option value="">Select a client</option>
+                    {clients.map((client) => (
+                      <option key={client.id} value={client.id}>
+                        {client.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Amount ($)
+                  </label>
+                  <input
+                    type="number"
+                    name="amount"
+                    required
+                    min="0"
+                    step="0.01"
+                    className="w-full rounded-xl border-slate-300 bg-white/70 px-4 py-2 backdrop-blur-md dark:border-slate-700 dark:bg-slate-800/60"
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Due Date
+                  </label>
+                  <input
+                    type="date"
+                    name="dueDate"
+                    required
+                    className="w-full rounded-xl border-slate-300 bg-white/70 px-4 py-2 backdrop-blur-md dark:border-slate-700 dark:bg-slate-800/60"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Description
+                  </label>
+                  <textarea
+                    name="description"
+                    rows={3}
+                    className="w-full rounded-xl border-slate-300 bg-white/70 px-4 py-2 backdrop-blur-md dark:border-slate-700 dark:bg-slate-800/60"
+                    placeholder="Invoice description..."
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddInvoiceModal(false)}
+                    className="flex-1 rounded-xl border border-slate-300 bg-white/70 px-4 py-2 font-medium text-slate-700 backdrop-blur-md hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300 dark:hover:bg-slate-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-2 font-medium text-white shadow-lg shadow-blue-900/20 hover:from-blue-700 hover:to-blue-800 dark:from-blue-500 dark:to-blue-600"
+                  >
+                    Create Invoice
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderSettingsView = () => {
     const settingsTabs = [
       { id: "profile", label: "Profile & Account", icon: UserCircleIcon },
@@ -3814,6 +4227,8 @@ const DashboardLayout: FC = () => {
               renderTasksView()
             ) : activeNavItem === 'Calendar' ? (
               renderCalendarView()
+            ) : activeNavItem === 'Invoices' ? (
+              renderInvoicesView()
             ) : activeNavItem === 'Analytics' ? (
               renderAnalyticsView()
             ) : activeNavItem === 'Settings' ? (
