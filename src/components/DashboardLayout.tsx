@@ -5309,7 +5309,7 @@ const DashboardLayout: FC = () => {
               renderSettingsView()
             ) : (
               <section className="space-y-8">
-                <div className="flex items-start justify-between gap-6">
+                <div className="flex flex-col md:flex-row items-start justify-between gap-6">
                   <div className="space-y-2 flex-1">
                     <p className="text-sm uppercase tracking-widest text-slate-500 dark:text-slate-400">
                       Dashboard
@@ -5320,7 +5320,7 @@ const DashboardLayout: FC = () => {
                   </div>
 
                   {/* Weather Widget */}
-                  <div className="rounded-3xl border border-white/60 bg-gradient-to-br from-blue-50 to-blue-100/50 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:from-blue-950/30 dark:to-blue-900/20 min-w-[280px]">
+                  <div className="w-full md:min-w-[280px] md:w-auto rounded-3xl border border-white/60 bg-gradient-to-br from-blue-50 to-blue-100/50 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:from-blue-950/30 dark:to-blue-900/20">
                     {isLoadingWeather ? (
                       <div className="flex items-center justify-center py-4">
                         <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600"></div>
@@ -5379,6 +5379,47 @@ const DashboardLayout: FC = () => {
                     )}
                   </div>
                 </div>
+
+              {/* Mobile App Grid - Only visible on mobile */}
+              <div className="md:hidden">
+                <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60">
+                  <h2 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">
+                    Quick Access
+                  </h2>
+                  <div className="grid grid-cols-4 gap-4">
+                    {navItems.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <button
+                          key={item.label}
+                          onClick={() => setActiveNavItem(item.label)}
+                          className="flex flex-col items-center gap-2 group"
+                        >
+                          <div className="relative">
+                            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-900/30 flex items-center justify-center transition-all duration-200 group-hover:scale-110 group-active:scale-95 dark:from-blue-600 dark:to-blue-700">
+                              <Icon className="h-7 w-7 text-white" />
+                            </div>
+                            {/* Notification badge for certain tabs */}
+                            {item.label === 'Notifications' && notifications.filter(n => !n.read).length > 0 && (
+                              <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-lg">
+                                {notifications.filter(n => !n.read).length}
+                              </div>
+                            )}
+                            {item.label === 'Tasks' && tasks.filter(t => t.status !== 'Done').length > 0 && (
+                              <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-lg">
+                                {tasks.filter(t => t.status !== 'Done').length}
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-[10px] font-medium text-slate-700 dark:text-slate-300 text-center leading-tight">
+                            {item.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
 
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {statCards.map(({ label, value, icon: Icon }) => (
