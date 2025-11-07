@@ -1098,11 +1098,10 @@ const DashboardLayout: FC = () => {
     try {
       setIsLoadingWeather(true);
       
-      // First, get user's location (you can also hardcode coordinates for a specific city)
-      // For demo, using New York coordinates. In production, use geolocation API
-      const latitude = 40.7128;
-      const longitude = -74.0060;
-      const city = "New York";
+      // Las Vegas coordinates
+      const latitude = 36.1699;
+      const longitude = -115.1398;
+      const city = "Las Vegas";
 
       // Fetch weather data from Open-Meteo (free, no API key required)
       const response = await fetch(
