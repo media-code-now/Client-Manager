@@ -737,7 +737,7 @@ const DashboardLayout: FC = () => {
                         Username: {credential.username}
                       </p>
                       <p className="text-sm text-slate-500 dark:text-slate-400">
-                        Password: {credential.maskedValue}
+                        Password: ••••••••
                       </p>
                       {credential.url && (
                         <a
@@ -1663,7 +1663,7 @@ const DashboardLayout: FC = () => {
                 clientId: selectedClient.id,
                 label: formData.get('label') as string,
                 username: formData.get('username') as string,
-                maskedValue: '••••' + password.slice(-4),
+                maskedValue: '••••••••',
                 url: formData.get('url') as string || undefined,
               };
               setCredentials(prev => [...prev, newCredential]);
@@ -3705,7 +3705,7 @@ const DashboardLayout: FC = () => {
                             </div>
                           </div>
                           <span className="rounded-full bg-white/80 px-3 py-1 font-mono text-sm tracking-wide text-slate-500 dark:bg-slate-900/70 dark:text-slate-300">
-                            {credential.maskedValue}
+                            ••••••••
                           </span>
                         </div>
                       ))}
