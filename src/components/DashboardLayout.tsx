@@ -13,6 +13,7 @@ import {
   ExclamationTriangleIcon,
   EyeIcon,
   HomeIcon,
+  KeyIcon,
   LanguageIcon,
   MagnifyingGlassIcon,
   MoonIcon,
@@ -3319,7 +3320,7 @@ const DashboardLayout: FC = () => {
                 <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
                   Quick Actions
                 </h2>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <button
                     onClick={() => setShowAddClientModal(true)}
                     className={classNames(
@@ -3363,6 +3364,39 @@ const DashboardLayout: FC = () => {
                       </p>
                       <p className="text-sm text-slate-600 dark:text-slate-400">
                         Create a task for any client
+                      </p>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      if (!selectedClientId && clients.length > 0) {
+                        alert('Please select a client first from the Clients page.');
+                        setActiveNavItem('Clients');
+                        return;
+                      }
+                      if (!selectedClientId) {
+                        alert('Please add a client first.');
+                        setShowAddClientModal(true);
+                        return;
+                      }
+                      setShowAddCredentialModal(true);
+                    }}
+                    className={classNames(
+                      "flex items-center gap-4 rounded-2xl border border-white/60 bg-gradient-to-r from-purple-50 to-purple-100/50 p-6 shadow-lg shadow-slate-900/5 backdrop-blur-md transition-all hover:from-purple-100 hover:to-purple-200/50 hover:shadow-xl dark:border-slate-800/60 dark:from-purple-950/30 dark:to-purple-900/20 dark:hover:from-purple-900/40 dark:hover:to-purple-800/30",
+                      iosMotion.hoverCard,
+                      iosMotion.focusRing
+                    )}
+                  >
+                    <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-purple-500 shadow-lg shadow-purple-500/25">
+                      <KeyIcon className="h-6 w-6 text-white" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                        Add New Credential
+                      </p>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        Store credentials for a client
                       </p>
                     </div>
                   </button>
