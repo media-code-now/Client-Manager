@@ -110,7 +110,7 @@ export class EmailService {
       refresh_token: this.credentials.refreshToken,
     });
 
-    this.transporter = nodemailer.createTransporter({
+    this.transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         type: 'OAuth2',
@@ -131,7 +131,7 @@ export class EmailService {
       throw new Error('Outlook OAuth tokens are required');
     }
 
-    this.transporter = nodemailer.createTransporter({
+    this.transporter = nodemailer.createTransport({
       host: 'smtp-mail.outlook.com',
       port: 587,
       secure: false,
@@ -154,7 +154,7 @@ export class EmailService {
       throw new Error('Yahoo app password is required');
     }
 
-    this.transporter = nodemailer.createTransporter({
+    this.transporter = nodemailer.createTransport({
       service: 'yahoo',
       auth: {
         user: this.credentials.email,
@@ -171,7 +171,7 @@ export class EmailService {
       throw new Error('SMTP configuration is incomplete');
     }
 
-    this.transporter = nodemailer.createTransporter({
+    this.transporter = nodemailer.createTransport({
       host: this.credentials.smtpHost,
       port: this.credentials.smtpPort || 587,
       secure: this.credentials.smtpSecure || false,
