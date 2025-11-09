@@ -32,6 +32,7 @@ import {
   PlusIcon,
   RectangleStackIcon,
   ShieldCheckIcon,
+  Square3Stack3DIcon,
   SunIcon,
   UserCircleIcon,
   UserGroupIcon,
@@ -307,6 +308,7 @@ const DashboardLayout: FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [showAddProjectModal, setShowAddProjectModal] = useState<boolean>(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [expandedIntegration, setExpandedIntegration] = useState<string | null>(null);
   const [projectView, setProjectView] = useState<"list" | "detail">("list");
   const [projectStatusFilter, setProjectStatusFilter] = useState<string>("All Status");
   const [weather, setWeather] = useState<{
@@ -406,11 +408,12 @@ const DashboardLayout: FC = () => {
   useEffect(() => {
     const token = getAccessToken();
     if (token) {
-      console.log('Token found, fetching clients, tasks, weather, and profile...');
+      console.log('Token found, fetching clients, tasks, weather, profile, and appearance preferences...');
       fetchClients();
       fetchTasks();
       fetchWeather(); // Fetch weather on mount
       fetchUserProfile(); // Fetch user profile on mount
+      fetchAppearancePreferences(); // Fetch appearance preferences on mount
     } else {
       console.log('No token found, skipping data fetch');
     }
@@ -667,6 +670,7 @@ const DashboardLayout: FC = () => {
     { label: "Calendar", icon: CalendarIcon },
     { label: "Invoices", icon: CurrencyDollarIcon },
     { label: "Analytics", icon: ChartBarIcon },
+    { label: "Integrations", icon: Square3Stack3DIcon },
     { label: "Notifications", icon: BellIcon },
     { label: "Settings", icon: Cog6ToothIcon },
   ];
@@ -1228,6 +1232,76 @@ const DashboardLayout: FC = () => {
       return true;
     } catch (error) {
       console.error('Error saving user profile:', error);
+      return false;
+    }
+  };
+
+  // Fetch appearance preferences from API
+  const fetchAppearancePreferences = async () => {
+    try {
+      const token = getAccessToken();
+      if (!token) {
+        console.log('No token found for appearance preferences fetch');
+        return;
+      }
+
+      const response = await fetch('/api/appearance-preferences', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch appearance preferences');
+      }
+
+      const data = await response.json();
+      setAppearancePreferences({
+        theme: data.theme || 'system',
+        colorScheme: data.colorScheme || 'blue',
+        viewDensity: data.viewDensity || 'comfortable',
+        language: data.language || 'en',
+        reducedMotion: data.reducedMotion || false,
+        highContrast: data.highContrast || false,
+      });
+    } catch (error) {
+      console.error('Error fetching appearance preferences:', error);
+    }
+  };
+
+  // Save appearance preferences to API
+  const saveAppearancePreferences = async (preferences: AppearancePreferences) => {
+    try {
+      const token = getAccessToken();
+      if (!token) {
+        console.log('No token found for appearance preferences save');
+        return false;
+      }
+
+      const response = await fetch('/api/appearance-preferences', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          theme: preferences.theme,
+          colorScheme: preferences.colorScheme,
+          viewDensity: preferences.viewDensity,
+          language: preferences.language,
+          reducedMotion: preferences.reducedMotion,
+          highContrast: preferences.highContrast,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save appearance preferences');
+      }
+
+      console.log('✅ Appearance preferences saved successfully');
+      return true;
+    } catch (error) {
+      console.error('Error saving appearance preferences:', error);
       return false;
     }
   };
@@ -3834,6 +3908,268 @@ const DashboardLayout: FC = () => {
     );
   };
 
+  const renderIntegrationsView = () => {
+    // Integration categories with provider options
+    const integrationCategories = [
+      {
+        id: 'email',
+        name: 'Email',
+        description: 'Connect your email to sync contacts and conversations',
+        icon: '📧',
+        color: 'from-red-500 to-red-600',
+        connected: false,
+        features: ['Contact Sync', 'Email Tracking', 'Auto-log Emails', 'Calendar Integration'],
+        providers: [
+          { id: 'gmail', name: 'Gmail', icon: '📧' },
+          { id: 'outlook', name: 'Microsoft Outlook', icon: '📨' },
+          { id: 'yahoo', name: 'Yahoo Mail', icon: '📮' },
+        ],
+      },
+      {
+        id: 'forms',
+        name: 'Forms',
+        description: 'Automatically create clients from form submissions',
+        icon: '📝',
+        color: 'from-purple-500 to-purple-600',
+        connected: false,
+        features: ['Auto-create Clients', 'Field Mapping', 'Webhooks', 'Real-time Sync'],
+        providers: [
+          { id: 'typeform', name: 'Typeform', icon: '📝' },
+          { id: 'google_forms', name: 'Google Forms', icon: '📋' },
+          { id: 'jotform', name: 'JotForm', icon: '📄' },
+        ],
+      },
+      {
+        id: 'website',
+        name: 'Website',
+        description: 'Track visitors and capture leads from your website',
+        icon: '🌐',
+        color: 'from-indigo-500 to-indigo-600',
+        connected: false,
+        features: ['Visitor Tracking', 'Lead Capture', 'Analytics', 'Form Integration'],
+        providers: [
+          { id: 'wordpress', name: 'WordPress', icon: '🌐' },
+          { id: 'webflow', name: 'Webflow', icon: '🎨' },
+          { id: 'wix', name: 'Wix', icon: '🏗️' },
+          { id: 'squarespace', name: 'Squarespace', icon: '⬛' },
+        ],
+      },
+      {
+        id: 'ads',
+        name: 'Advertising',
+        description: 'Track ad performance and attribute conversions',
+        icon: '🎯',
+        color: 'from-yellow-500 to-yellow-600',
+        connected: false,
+        features: ['Campaign Tracking', 'ROI Analysis', 'Conversion Attribution', 'Ad Spend'],
+        providers: [
+          { id: 'google_ads', name: 'Google Ads', icon: '🎯' },
+          { id: 'facebook_ads', name: 'Facebook Ads', icon: '📱' },
+          { id: 'linkedin_ads', name: 'LinkedIn Ads', icon: '💼' },
+        ],
+      },
+      {
+        id: 'marketing',
+        name: 'Marketing Automation',
+        description: 'Sync contacts and automate marketing campaigns',
+        icon: '�',
+        color: 'from-orange-500 to-orange-600',
+        connected: false,
+        features: ['Email Automation', 'Contact Sync', 'Campaign Analytics', 'Workflows'],
+        providers: [
+          { id: 'mailchimp', name: 'Mailchimp', icon: '�' },
+          { id: 'hubspot', name: 'HubSpot', icon: '🚀' },
+          { id: 'activecampaign', name: 'ActiveCampaign', icon: '✉️' },
+          { id: 'sendgrid', name: 'SendGrid', icon: '📬' },
+        ],
+      },
+      {
+        id: 'payments',
+        name: 'Payments',
+        description: 'Process invoices and accept payments from clients',
+        icon: '💳',
+        color: 'from-green-500 to-green-600',
+        connected: false,
+        features: ['Invoice Processing', 'Payment Tracking', 'Recurring Billing', 'Financial Reports'],
+        providers: [
+          { id: 'stripe', name: 'Stripe', icon: '💳' },
+          { id: 'square', name: 'Square', icon: '⬛' },
+        ],
+      },
+    ];
+
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl font-semibold text-slate-900 dark:text-slate-100">
+            Integrations
+          </h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Connect your favorite tools to automate workflows and sync data
+          </p>
+        </div>
+
+        {/* Stats Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
+                <Square3Stack3DIcon className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">0</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Active Integrations</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg">
+                <CheckBadgeIcon className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">0</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Data Synced Today</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-lg">
+                <ClockIcon className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">--</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Last Sync</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg">
+                <ExclamationTriangleIcon className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">0</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Failed Syncs</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Integration Categories */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {integrationCategories.map((category) => (
+            <div
+              key={category.id}
+              className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60 hover:shadow-xl transition-all"
+            >
+              {/* Category Header */}
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-4">
+                  <div className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${category.color} text-white shadow-lg text-2xl`}>
+                    {category.icon}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                      {category.name}
+                    </h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      {category.description}
+                    </p>
+                  </div>
+                </div>
+                {category.connected && (
+                  <div className="flex items-center gap-2 rounded-full bg-green-100 px-3 py-1 dark:bg-green-900/30">
+                    <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                    <span className="text-xs font-medium text-green-700 dark:text-green-300">
+                      Connected
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Feature Badges */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                {category.features.map((feature, index) => (
+                  <span
+                    key={index}
+                    className="rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-slate-600 dark:bg-slate-900/80 dark:text-slate-300 border border-white/60 dark:border-slate-700/60"
+                  >
+                    {feature}
+                  </span>
+                ))}
+              </div>
+
+              {/* Connect Button or Provider Selection */}
+              {expandedIntegration !== category.id ? (
+                <button
+                  onClick={() => setExpandedIntegration(category.id)}
+                  className="w-full rounded-2xl bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-lg hover:from-blue-600 hover:to-blue-700 transition-all"
+                >
+                  Connect {category.name}
+                </button>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Choose a provider:
+                    </p>
+                    <button
+                      onClick={() => setExpandedIntegration(null)}
+                      className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    >
+                      <XMarkIcon className="h-5 w-5" />
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {category.providers.map((provider) => (
+                      <button
+                        key={provider.id}
+                        onClick={() => {
+                          alert(`Connect to ${provider.name}\n\nThis will open the OAuth flow or API key configuration for ${provider.name}.`);
+                          setExpandedIntegration(null);
+                        }}
+                        className="w-full flex items-center gap-3 rounded-2xl border border-white/60 bg-white/80 p-3 text-left shadow-sm hover:bg-white hover:shadow-md transition-all dark:border-slate-700/60 dark:bg-slate-900/80 dark:hover:bg-slate-900"
+                      >
+                        <span className="text-2xl">{provider.icon}</span>
+                        <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                          {provider.name}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Coming Soon Section */}
+        <div className="rounded-3xl border border-white/60 bg-white/70 p-8 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60 text-center">
+          <div className="flex justify-center mb-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 text-3xl">
+              🚀
+            </div>
+          </div>
+          <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2">
+            More Integrations Coming Soon
+          </h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            We're working on adding more integrations including Zapier, Slack, QuickBooks, and more.
+            <br />
+            Have a suggestion? Let us know!
+          </p>
+        </div>
+      </div>
+    );
+  };
+
   const renderSettingsView = () => {
     const settingsTabs = [
       { id: "profile", label: "Profile & Account", icon: UserCircleIcon },
@@ -4205,9 +4541,12 @@ const DashboardLayout: FC = () => {
                 ].map(({ id, label, icon: Icon }) => (
                   <button
                     key={id}
-                    onClick={() => {
-                      setTheme(id as 'light' | 'dark');
-                      setAppearancePreferences(prev => ({ ...prev, theme: id as any }));
+                    onClick={async () => {
+                      const newTheme = id as 'light' | 'dark';
+                      setTheme(newTheme);
+                      const updatedPreferences = { ...appearancePreferences, theme: newTheme as any };
+                      setAppearancePreferences(updatedPreferences);
+                      await saveAppearancePreferences(updatedPreferences);
                     }}
                     className={`flex flex-col items-center gap-2 rounded-2xl border p-4 text-sm font-medium transition-all ${
                       theme === id
@@ -4245,7 +4584,11 @@ const DashboardLayout: FC = () => {
                 ].map(({ id, label, colors, bg }) => (
                   <button
                     key={id}
-                    onClick={() => setAppearancePreferences(prev => ({ ...prev, colorScheme: id as any }))}
+                    onClick={async () => {
+                      const updatedPreferences = { ...appearancePreferences, colorScheme: id as any };
+                      setAppearancePreferences(updatedPreferences);
+                      await saveAppearancePreferences(updatedPreferences);
+                    }}
                     className={`flex flex-col items-center gap-2 rounded-2xl border p-4 transition-all ${
                       appearancePreferences.colorScheme === id
                         ? 'border-slate-300 bg-slate-50 shadow-inner shadow-slate-200/50 dark:border-slate-600 dark:bg-slate-800/50'
@@ -4284,7 +4627,11 @@ const DashboardLayout: FC = () => {
                 ].map(({ id, label, description }) => (
                   <button
                     key={id}
-                    onClick={() => setAppearancePreferences(prev => ({ ...prev, viewDensity: id as any }))}
+                    onClick={async () => {
+                      const updatedPreferences = { ...appearancePreferences, viewDensity: id as any };
+                      setAppearancePreferences(updatedPreferences);
+                      await saveAppearancePreferences(updatedPreferences);
+                    }}
                     className={`flex flex-col gap-2 rounded-2xl border p-4 text-left transition-all ${
                       appearancePreferences.viewDensity === id
                         ? 'border-blue-300 bg-blue-50 shadow-inner shadow-blue-200/50 dark:border-blue-600 dark:bg-blue-500/20'
@@ -4325,7 +4672,11 @@ const DashboardLayout: FC = () => {
               </label>
               <select
                 value={appearancePreferences.language}
-                onChange={(e) => setAppearancePreferences(prev => ({ ...prev, language: e.target.value }))}
+                onChange={async (e) => {
+                  const updatedPreferences = { ...appearancePreferences, language: e.target.value };
+                  setAppearancePreferences(updatedPreferences);
+                  await saveAppearancePreferences(updatedPreferences);
+                }}
                 className="w-full rounded-2xl border border-white/60 bg-white/80 px-4 py-3 text-sm shadow-inner shadow-white/40 backdrop-blur-md focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200/60 dark:border-slate-700/60 dark:bg-slate-900/80 dark:text-slate-100"
               >
                 <option value="en">English</option>
@@ -4360,7 +4711,11 @@ const DashboardLayout: FC = () => {
                     </div>
                   </div>
                   <button
-                    onClick={() => setAppearancePreferences(prev => ({ ...prev, highContrast: !prev.highContrast }))}
+                    onClick={async () => {
+                      const updatedPreferences = { ...appearancePreferences, highContrast: !appearancePreferences.highContrast };
+                      setAppearancePreferences(updatedPreferences);
+                      await saveAppearancePreferences(updatedPreferences);
+                    }}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                       appearancePreferences.highContrast 
                         ? 'bg-blue-600' 
@@ -4390,7 +4745,11 @@ const DashboardLayout: FC = () => {
                     </div>
                   </div>
                   <button
-                    onClick={() => setAppearancePreferences(prev => ({ ...prev, reducedMotion: !prev.reducedMotion }))}
+                    onClick={async () => {
+                      const updatedPreferences = { ...appearancePreferences, reducedMotion: !appearancePreferences.reducedMotion };
+                      setAppearancePreferences(updatedPreferences);
+                      await saveAppearancePreferences(updatedPreferences);
+                    }}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                       appearancePreferences.reducedMotion 
                         ? 'bg-blue-600' 
@@ -5522,6 +5881,8 @@ const DashboardLayout: FC = () => {
               renderInvoicesView()
             ) : activeNavItem === 'Analytics' ? (
               renderAnalyticsView()
+            ) : activeNavItem === 'Integrations' ? (
+              renderIntegrationsView()
             ) : activeNavItem === 'Notifications' ? (
               renderNotificationsView()
             ) : activeNavItem === 'Settings' ? (
