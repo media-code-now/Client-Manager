@@ -703,32 +703,6 @@ const DashboardLayout: FC = () => {
     });
   }, [tasks]);
 
-  const statCards = useMemo(
-    () => [
-      {
-        label: "Total clients",
-        value: clients.length,
-        icon: UserGroupIcon,
-      },
-      {
-        label: "Open tasks",
-        value: openTasks.length,
-        icon: ClipboardDocumentListIcon,
-      },
-      {
-        label: "Overdue tasks",
-        value: overdueCount,
-        icon: ExclamationTriangleIcon,
-      },
-      {
-        label: "Stored credentials",
-        value: credentials.length,
-        icon: ShieldCheckIcon,
-      },
-    ],
-    [clients.length, overdueCount, openTasks.length, credentials.length]
-  );
-
   const todayLabel = (dateIso?: string) => {
     if (!dateIso) return "No due date";
     const date = new Date(dateIso);
@@ -5513,30 +5487,6 @@ const DashboardLayout: FC = () => {
                     })}
                   </div>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {statCards.map(({ label, value, icon: Icon }) => (
-                  <div
-                    key={label}
-                    className={classNames(
-                      "flex flex-col items-center gap-2 rounded-xl border border-white/60 bg-white/70 p-3 shadow-md shadow-slate-900/5 backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20",
-                      iosMotion.hoverCard,
-                      iosMotion.focusRing
-                    )}
-                    tabIndex={0}
-                  >
-                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white/80 shadow-inner shadow-white/60 dark:bg-slate-900/70 dark:shadow-slate-950/30">
-                      <Icon className="h-4 w-4 text-slate-600 dark:text-slate-300" />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
-                      <p className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                        {value}
-                      </p>
-                    </div>
-                  </div>
-                ))}
               </div>
 
               {/* Quick Actions Section */}
