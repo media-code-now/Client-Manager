@@ -319,6 +319,7 @@ const DashboardLayout: FC = () => {
   } | null>(null);
   const [isLoadingWeather, setIsLoadingWeather] = useState<boolean>(true);
   const [showMobileMenu, setShowMobileMenu] = useState<boolean>(false);
+  const [profileSaveMessage, setProfileSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Toggle password visibility
   const togglePasswordVisibility = (credentialId: string) => {
@@ -405,10 +406,11 @@ const DashboardLayout: FC = () => {
   useEffect(() => {
     const token = getAccessToken();
     if (token) {
-      console.log('Token found, fetching clients and tasks...');
+      console.log('Token found, fetching clients, tasks, weather, and profile...');
       fetchClients();
       fetchTasks();
       fetchWeather(); // Fetch weather on mount
+      fetchUserProfile(); // Fetch user profile on mount
     } else {
       console.log('No token found, skipping data fetch');
     }
@@ -1132,6 +1134,101 @@ const DashboardLayout: FC = () => {
       console.error('Error fetching weather:', error);
     } finally {
       setIsLoadingWeather(false);
+    }
+  };
+
+  // Fetch user profile from API
+  const fetchUserProfile = async () => {
+    try {
+      const token = getAccessToken();
+      if (!token) {
+        console.log('No token found for profile fetch');
+        return;
+      }
+
+      const response = await fetch('/api/profile', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch profile');
+      }
+
+      const data = await response.json();
+      setUserProfile({
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        avatar: data.avatar,
+        company: data.company,
+        role: data.role,
+        timezone: data.timezone,
+        language: data.language,
+        twoFactorEnabled: data.two_factor_enabled || data.twoFactorEnabled,
+        emailNotifications: data.email_notifications !== false,
+        pushNotifications: data.push_notifications !== false,
+        marketingEmails: data.marketing_emails || false,
+      });
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
+
+  // Save user profile to API
+  const saveUserProfile = async (profileData: UserProfile) => {
+    try {
+      const token = getAccessToken();
+      if (!token) {
+        console.log('No token found for profile save');
+        return false;
+      }
+
+      const response = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: profileData.name,
+          email: profileData.email,
+          company: profileData.company,
+          role: profileData.role,
+          timezone: profileData.timezone,
+          language: profileData.language,
+          twoFactorEnabled: profileData.twoFactorEnabled,
+          emailNotifications: profileData.emailNotifications,
+          pushNotifications: profileData.pushNotifications,
+          marketingEmails: profileData.marketingEmails,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save profile');
+      }
+
+      const data = await response.json();
+      setUserProfile({
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        avatar: data.avatar,
+        company: data.company,
+        role: data.role,
+        timezone: data.timezone,
+        language: data.language,
+        twoFactorEnabled: data.two_factor_enabled || data.twoFactorEnabled,
+        emailNotifications: data.email_notifications !== false,
+        pushNotifications: data.push_notifications !== false,
+        marketingEmails: data.marketing_emails || false,
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Error saving user profile:', error);
+      return false;
     }
   };
 
@@ -3749,6 +3846,27 @@ const DashboardLayout: FC = () => {
 
     const renderProfileTab = () => (
       <div className="space-y-6">
+        {/* Success/Error Message */}
+        {profileSaveMessage && (
+          <div
+            className={`rounded-2xl border p-4 ${
+              profileSaveMessage.type === 'success'
+                ? 'border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-900/20 dark:text-green-200'
+                : 'border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-200'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">{profileSaveMessage.text}</p>
+              <button
+                onClick={() => setProfileSaveMessage(null)}
+                className="text-current hover:opacity-70"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Profile Information */}
         <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg shadow-slate-900/5 backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20">
           <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-6">
@@ -3756,16 +3874,25 @@ const DashboardLayout: FC = () => {
           </h3>
           
           <form
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
-              setUserProfile(prev => ({
-                ...prev,
+              const updatedProfile: UserProfile = {
+                ...userProfile,
                 name: formData.get('name') as string,
                 email: formData.get('email') as string,
                 company: formData.get('company') as string || undefined,
                 role: formData.get('role') as string || undefined,
-              }));
+              };
+              
+              const success = await saveUserProfile(updatedProfile);
+              
+              if (success) {
+                setProfileSaveMessage({ type: 'success', text: 'Profile updated successfully!' });
+                setTimeout(() => setProfileSaveMessage(null), 5000);
+              } else {
+                setProfileSaveMessage({ type: 'error', text: 'Failed to update profile. Please try again.' });
+              }
             }}
             className="space-y-4"
           >
@@ -3883,7 +4010,11 @@ const DashboardLayout: FC = () => {
                 </div>
               </div>
               <button
-                onClick={() => setUserProfile(prev => ({ ...prev, twoFactorEnabled: !prev.twoFactorEnabled }))}
+                onClick={async () => {
+                  const updatedProfile = { ...userProfile, twoFactorEnabled: !userProfile.twoFactorEnabled };
+                  setUserProfile(updatedProfile);
+                  await saveUserProfile(updatedProfile);
+                }}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   userProfile.twoFactorEnabled 
                     ? 'bg-blue-600' 
@@ -3914,7 +4045,11 @@ const DashboardLayout: FC = () => {
                 </label>
                 <select
                   value={userProfile.timezone}
-                  onChange={(e) => setUserProfile(prev => ({ ...prev, timezone: e.target.value }))}
+                  onChange={async (e) => {
+                    const updatedProfile = { ...userProfile, timezone: e.target.value };
+                    setUserProfile(updatedProfile);
+                    await saveUserProfile(updatedProfile);
+                  }}
                   className="w-full rounded-2xl border border-white/60 bg-white/80 px-4 py-3 text-sm shadow-inner shadow-white/40 backdrop-blur-md focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200/60 dark:border-slate-700/60 dark:bg-slate-900/80 dark:text-slate-100"
                 >
                   <option value="America/New_York">Eastern Time (ET)</option>
@@ -3933,7 +4068,11 @@ const DashboardLayout: FC = () => {
                 </label>
                 <select
                   value={userProfile.language}
-                  onChange={(e) => setUserProfile(prev => ({ ...prev, language: e.target.value }))}
+                  onChange={async (e) => {
+                    const updatedProfile = { ...userProfile, language: e.target.value };
+                    setUserProfile(updatedProfile);
+                    await saveUserProfile(updatedProfile);
+                  }}
                   className="w-full rounded-2xl border border-white/60 bg-white/80 px-4 py-3 text-sm shadow-inner shadow-white/40 backdrop-blur-md focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200/60 dark:border-slate-700/60 dark:bg-slate-900/80 dark:text-slate-100"
                 >
                   <option value="en">English</option>
@@ -3963,7 +4102,11 @@ const DashboardLayout: FC = () => {
                     </p>
                   </div>
                   <button
-                    onClick={() => setUserProfile(prev => ({ ...prev, emailNotifications: !prev.emailNotifications }))}
+                    onClick={async () => {
+                      const updatedProfile = { ...userProfile, emailNotifications: !userProfile.emailNotifications };
+                      setUserProfile(updatedProfile);
+                      await saveUserProfile(updatedProfile);
+                    }}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                       userProfile.emailNotifications 
                         ? 'bg-blue-600' 
@@ -3988,7 +4131,11 @@ const DashboardLayout: FC = () => {
                     </p>
                   </div>
                   <button
-                    onClick={() => setUserProfile(prev => ({ ...prev, pushNotifications: !prev.pushNotifications }))}
+                    onClick={async () => {
+                      const updatedProfile = { ...userProfile, pushNotifications: !userProfile.pushNotifications };
+                      setUserProfile(updatedProfile);
+                      await saveUserProfile(updatedProfile);
+                    }}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                       userProfile.pushNotifications 
                         ? 'bg-blue-600' 
@@ -4013,7 +4160,11 @@ const DashboardLayout: FC = () => {
                     </p>
                   </div>
                   <button
-                    onClick={() => setUserProfile(prev => ({ ...prev, marketingEmails: !prev.marketingEmails }))}
+                    onClick={async () => {
+                      const updatedProfile = { ...userProfile, marketingEmails: !userProfile.marketingEmails };
+                      setUserProfile(updatedProfile);
+                      await saveUserProfile(updatedProfile);
+                    }}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                       userProfile.marketingEmails 
                         ? 'bg-blue-600' 
