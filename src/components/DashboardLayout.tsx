@@ -5636,7 +5636,7 @@ const DashboardLayout: FC = () => {
                             <div key={idx} className="flex items-center gap-2 rounded-lg bg-purple-100/50 p-2 dark:bg-purple-900/20">
                               <div className={`h-2 w-2 rounded-full ${
                                 task.status === 'Done' ? 'bg-green-500' : 
-                                task.status === 'In Progress' ? 'bg-blue-500' : 'bg-purple-500'
+                                task.status === 'In progress' ? 'bg-blue-500' : 'bg-purple-500'
                               }`}></div>
                               <p className="text-xs text-purple-900 dark:text-purple-100 truncate flex-1">
                                 {task.title}
