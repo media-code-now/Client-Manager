@@ -3,6 +3,11 @@ import jwt from 'jsonwebtoken';
 import { EmailService } from '@/lib/email-service';
 import { encryptEmailCredentials, EmailCredentials } from '@/lib/encryption';
 
+// Force dynamic rendering (don't prerender at build time)
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+
 /**
  * Verify JWT token and get user ID
  */

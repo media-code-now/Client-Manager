@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabaseUrl } from '../../../utils/database';
 
+// Force dynamic rendering (don't prerender at build time)
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+
 export async function GET() {
   try {
     const jwtSecret = process.env.JWT_SECRET;

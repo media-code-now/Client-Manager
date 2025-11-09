@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
 
+// Force dynamic rendering (don't prerender at build time)
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+
 const sql = neon(process.env.DATABASE_URL!);
 
 /**

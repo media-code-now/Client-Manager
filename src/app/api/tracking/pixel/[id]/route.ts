@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { EmailTrackingService } from '@/lib/email-tracking-service';
 
+// Force dynamic rendering (don't prerender at build time)
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+
 // 1x1 transparent GIF (base64 encoded)
 const TRANSPARENT_GIF = Buffer.from(
   'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',

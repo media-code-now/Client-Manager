@@ -4,6 +4,11 @@ import jwt from 'jsonwebtoken';
 import { Client } from 'pg';
 import { getDatabaseUrl } from '../../../../utils/database';
 
+// Force dynamic rendering (don't prerender at build time)
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+
 interface LoginRequest {
   email: string;
   password: string;

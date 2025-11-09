@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { syncAllEmailIntegrations } from '@/lib/email-sync-service';
 
+// Force dynamic rendering (don't prerender at build time)
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+
 /**
  * POST /api/cron/sync-emails
  * Background worker endpoint to sync emails from all active integrations

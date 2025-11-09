@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
 
+// Force dynamic rendering (don't prerender at build time)
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 /**
  * OAuth2 configuration for different providers
  */
@@ -10,7 +14,7 @@ const getOAuthConfig = (provider: string) => {
       return {
         clientId: process.env.GMAIL_CLIENT_ID!,
         clientSecret: process.env.GMAIL_CLIENT_SECRET!,
-        redirectUri: `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/email/oauth/callback`,
+        redirectUri: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/integrations/email/oauth/callback`,
         tokenUrl: 'https://oauth2.googleapis.com/token',
       };
     
@@ -18,7 +22,7 @@ const getOAuthConfig = (provider: string) => {
       return {
         clientId: process.env.OUTLOOK_CLIENT_ID!,
         clientSecret: process.env.OUTLOOK_CLIENT_SECRET!,
-        redirectUri: `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/email/oauth/callback`,
+        redirectUri: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/integrations/email/oauth/callback`,
         tokenUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
       };
     
@@ -32,6 +36,8 @@ const getOAuthConfig = (provider: string) => {
  * Handle OAuth callback from Gmail/Outlook
  */
 export async function GET(request: NextRequest) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  
   try {
     const { searchParams } = new URL(request.url);
     const code = searchParams.get('code');
@@ -44,13 +50,13 @@ export async function GET(request: NextRequest) {
       console.error('OAuth error:', error, errorDescription);
       
       return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_APP_URL}/settings?tab=integrations&error=${encodeURIComponent(errorDescription)}`
+        `${appUrl}/settings?tab=integrations&error=${encodeURIComponent(errorDescription)}`
       );
     }
 
     if (!code || !state) {
       return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_APP_URL}/settings?tab=integrations&error=Missing authorization code or state`
+        `${appUrl}/settings?tab=integrations&error=Missing authorization code or state`
       );
     }
 
@@ -61,7 +67,7 @@ export async function GET(request: NextRequest) {
     } catch (e) {
       console.error('Invalid state parameter:', e);
       return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_APP_URL}/settings?tab=integrations&error=Invalid state parameter`
+        `${appUrl}/settings?tab=integrations&error=Invalid state parameter`
       );
     }
 
@@ -69,7 +75,7 @@ export async function GET(request: NextRequest) {
 
     if (!provider || !userId) {
       return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_APP_URL}/settings?tab=integrations&error=Invalid state data`
+        `${appUrl}/settings?tab=integrations&error=Invalid state data`
       );
     }
 
@@ -146,7 +152,7 @@ export async function GET(request: NextRequest) {
 
     // Store tokens temporarily in URL params for the frontend to handle
     // In production, you might want to use a more secure method
-    const successUrl = new URL(`${process.env.NEXT_PUBLIC_APP_URL}/settings`);
+    const successUrl = new URL(`${appUrl}/settings`);
     successUrl.searchParams.set('tab', 'integrations');
     successUrl.searchParams.set('oauth_success', 'true');
     successUrl.searchParams.set('provider', provider);
@@ -160,9 +166,10 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('OAuth callback error:', error);
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL}/settings?tab=integrations&error=${encodeURIComponent(
+      `${appUrl}/settings?tab=integrations&error=${encodeURIComponent(
         error instanceof Error ? error.message : 'OAuth callback failed'
       )}`
     );

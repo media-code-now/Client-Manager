@@ -3,6 +3,11 @@ import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
 import { EmailSyncService } from '@/lib/email-sync-service';
 
+// Force dynamic rendering (don't prerender at build time)
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+
 const sql = neon(process.env.DATABASE_URL!);
 
 /**

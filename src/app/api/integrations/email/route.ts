@@ -4,6 +4,11 @@ import jwt from 'jsonwebtoken';
 import { EmailService, EmailIntegrationFactory } from '@/lib/email-service';
 import { encryptEmailCredentials, EmailCredentials, maskEmailCredentials } from '@/lib/encryption';
 
+// Force dynamic rendering (don't prerender at build time)
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+
 const sql = neon(process.env.DATABASE_URL!);
 
 /**

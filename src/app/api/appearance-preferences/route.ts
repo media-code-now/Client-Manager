@@ -3,6 +3,10 @@ import { neon } from "@neondatabase/serverless";
 
 const sql = neon(process.env.DATABASE_URL!);
 
+// Force dynamic rendering (don't prerender at build time)
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 // GET /api/appearance-preferences - Get user appearance preferences
 export async function GET(request: NextRequest) {
   try {

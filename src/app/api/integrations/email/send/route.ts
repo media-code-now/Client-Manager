@@ -4,6 +4,11 @@ import jwt from 'jsonwebtoken';
 import { EmailService } from '@/lib/email-service';
 import { EmailTrackingService } from '@/lib/email-tracking-service';
 
+// Force dynamic rendering (don't prerender at build time)
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+
 const sql = neon(process.env.DATABASE_URL!);
 
 /**

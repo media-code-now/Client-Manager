@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { EmailTrackingService } from '@/lib/email-tracking-service';
 
+// Force dynamic rendering (don't prerender at build time)
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+
 /**
  * Email Link Click Tracking Endpoint
  * Records click event and redirects to original URL

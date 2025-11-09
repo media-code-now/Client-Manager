@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { EmailTrackingService } from '@/lib/email-tracking-service';
 
+// Force dynamic rendering (don't prerender at build time)
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 /**
  * Email Performance Dashboard Analytics Endpoint
  * Returns aggregate email analytics with filters
