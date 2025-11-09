@@ -5446,6 +5446,84 @@ const DashboardLayout: FC = () => {
                       </div>
                     )}
                   </div>
+
+                  {/* Calendar Widget */}
+                  <div className="w-full md:min-w-[280px] md:w-auto rounded-3xl border border-white/60 bg-gradient-to-br from-purple-50 to-purple-100/50 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:from-purple-950/30 dark:to-purple-900/20">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="rounded-lg bg-purple-200/50 p-2 dark:bg-purple-900/30">
+                            <CalendarIcon className="h-6 w-6 text-purple-700 dark:text-purple-400" />
+                          </div>
+                          <div>
+                            <p className="text-sm text-purple-600 dark:text-purple-400 font-medium">
+                              {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                            </p>
+                            <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">
+                              {new Date().toLocaleDateString('en-US', { weekday: 'long' })}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-4xl font-bold text-purple-900 dark:text-purple-100">
+                            {new Date().getDate()}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="border-t border-purple-200/50 dark:border-purple-800/50 pt-4">
+                        <p className="text-sm font-medium text-purple-800 dark:text-purple-200 mb-3">
+                          Today&apos;s Schedule
+                        </p>
+                        <div className="space-y-2">
+                          {tasks.filter(task => {
+                            if (!task.dueDate) return false;
+                            const today = new Date().toDateString();
+                            const taskDate = new Date(task.dueDate).toDateString();
+                            return taskDate === today;
+                          }).slice(0, 3).map((task, idx) => (
+                            <div key={idx} className="flex items-center gap-2 rounded-lg bg-purple-100/50 p-2 dark:bg-purple-900/20">
+                              <div className={`h-2 w-2 rounded-full ${
+                                task.status === 'Done' ? 'bg-green-500' : 
+                                task.status === 'In Progress' ? 'bg-blue-500' : 'bg-purple-500'
+                              }`}></div>
+                              <p className="text-xs text-purple-900 dark:text-purple-100 truncate flex-1">
+                                {task.title}
+                              </p>
+                            </div>
+                          ))}
+                          {tasks.filter(task => {
+                            if (!task.dueDate) return false;
+                            const today = new Date().toDateString();
+                            const taskDate = new Date(task.dueDate).toDateString();
+                            return taskDate === today;
+                          }).length === 0 && (
+                            <div className="text-center py-2">
+                              <p className="text-xs text-purple-600 dark:text-purple-400">No tasks scheduled for today</p>
+                            </div>
+                          )}
+                          {tasks.filter(task => {
+                            if (!task.dueDate) return false;
+                            const today = new Date().toDateString();
+                            const taskDate = new Date(task.dueDate).toDateString();
+                            return taskDate === today;
+                          }).length > 3 && (
+                            <button
+                              onClick={() => setActiveNavItem('Calendar')}
+                              className="w-full text-center text-xs text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-200 font-medium py-1"
+                            >
+                              View all ({tasks.filter(task => {
+                                if (!task.dueDate) return false;
+                                const today = new Date().toDateString();
+                                const taskDate = new Date(task.dueDate).toDateString();
+                                return taskDate === today;
+                              }).length} tasks)
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
               {/* Mobile App Grid - Only visible on mobile */}
