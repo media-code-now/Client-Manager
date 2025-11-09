@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { getAccessToken } from '../utils/auth';
 
 interface Email {
   id: number;
@@ -50,7 +51,7 @@ export default function EmailList({
   const fetchEmails = async () => {
     try {
       setIsLoading(true);
-      const token = localStorage.getItem('token');
+      const token = getAccessToken();
       
       let url = `/api/emails?page=${page}&limit=${limit}`;
       if (contactId) {
@@ -78,7 +79,7 @@ export default function EmailList({
 
   const markAsRead = async (emailId: number) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getAccessToken();
       await fetch(`/api/emails/${emailId}`, {
         method: 'PATCH',
         headers: {

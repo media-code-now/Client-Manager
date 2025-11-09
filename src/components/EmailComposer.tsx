@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { getAccessToken } from '../utils/auth';
 
 interface EmailRecipient {
   email: string;
@@ -114,7 +115,7 @@ export default function EmailComposer({
 
   const fetchEmailIntegrations = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getAccessToken();
       const response = await fetch('/api/integrations/email', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -177,7 +178,7 @@ export default function EmailComposer({
     setIsSending(true);
 
     try {
-      const token = localStorage.getItem('token');
+      const token = getAccessToken();
       const formData = new FormData();
       
       formData.append('integrationId', selectedIntegration);

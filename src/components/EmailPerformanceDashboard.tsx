@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { getAccessToken } from '../utils/auth';
 
 interface EmailPerformanceData {
   totalSent: number;
@@ -72,7 +73,7 @@ export default function EmailPerformanceDashboard({
 
       const response = await fetch(`/api/analytics/email-performance?${params.toString()}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${getAccessToken()}`
         }
       });
 

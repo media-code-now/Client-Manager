@@ -4293,7 +4293,7 @@ const DashboardLayout: FC = () => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Authorization': `Bearer ${getAccessToken()}`,
           },
           body: JSON.stringify({ provider }),
         });
@@ -4336,7 +4336,7 @@ const DashboardLayout: FC = () => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Authorization': `Bearer ${getAccessToken()}`,
           },
           body: JSON.stringify({ credentials }),
         });
@@ -4379,7 +4379,7 @@ const DashboardLayout: FC = () => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Authorization': `Bearer ${getAccessToken()}`,
           },
           body: JSON.stringify({
             name: emailForm.name || `${provider} Account`,
@@ -4471,7 +4471,7 @@ const DashboardLayout: FC = () => {
                 disabled={isConnecting}
                 className="w-full rounded-2xl bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4 text-lg font-semibold text-white shadow-lg hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 transition-all"
               >
-                {isConnecting ? 'Connecting...' : `Connect with ${provider?.charAt(0).toUpperCase()}{provider?.slice(1)}`}
+                {isConnecting ? 'Connecting...' : `Connect with ${provider?.charAt(0).toUpperCase()}${provider?.slice(1)}`}
               </button>
             </div>
           )}
