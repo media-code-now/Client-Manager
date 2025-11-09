@@ -45,6 +45,9 @@ import { useMemo, useState, useEffect } from "react";
 import { ThemeToggle } from "./ThemeToggle";
 import { useTheme } from "./ThemeProvider";
 import { getAccessToken, getAuthState } from "../utils/auth";
+import EmailComposer from "./EmailComposer";
+import EmailList from "./EmailList";
+import EmailPerformanceDashboard from "./EmailPerformanceDashboard";
 
 type ClientStatus = "Active" | "On hold" | "Archived";
 type TaskStatus = "Open" | "In progress" | "Done";
@@ -309,6 +312,15 @@ const DashboardLayout: FC = () => {
   const [showAddProjectModal, setShowAddProjectModal] = useState<boolean>(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [expandedIntegration, setExpandedIntegration] = useState<string | null>(null);
+  const [emailSetupModal, setEmailSetupModal] = useState<{ show: boolean; provider?: string }>({ show: false });
+  const [emailComposerModal, setEmailComposerModal] = useState<{ 
+    show: boolean; 
+    mode?: 'compose' | 'reply' | 'forward';
+    replyToEmail?: any;
+    prefilledTo?: string;
+    prefilledSubject?: string;
+    contactId?: number;
+  }>({ show: false });
   const [projectView, setProjectView] = useState<"list" | "detail">("list");
   const [projectStatusFilter, setProjectStatusFilter] = useState<string>("All Status");
   const [weather, setWeather] = useState<{
@@ -322,6 +334,7 @@ const DashboardLayout: FC = () => {
   const [isLoadingWeather, setIsLoadingWeather] = useState<boolean>(true);
   const [showMobileMenu, setShowMobileMenu] = useState<boolean>(false);
   const [profileSaveMessage, setProfileSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [mailsActiveTab, setMailsActiveTab] = useState<'inbox' | 'analytics'>('inbox');
 
   // Toggle password visibility
   const togglePasswordVisibility = (credentialId: string) => {
@@ -669,6 +682,7 @@ const DashboardLayout: FC = () => {
     { label: "Tasks", icon: ClipboardDocumentListIcon },
     { label: "Calendar", icon: CalendarIcon },
     { label: "Invoices", icon: CurrencyDollarIcon },
+    { label: "Mails", icon: EnvelopeIcon },
     { label: "Analytics", icon: ChartBarIcon },
     { label: "Integrations", icon: Square3Stack3DIcon },
     { label: "Notifications", icon: BellIcon },
@@ -3086,6 +3100,82 @@ const DashboardLayout: FC = () => {
     );
   };
 
+  const renderMailsView = () => {
+    return (
+      <div className="space-y-6">
+        {/* Header with tabs and compose button */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+            <button
+              onClick={() => setMailsActiveTab('inbox')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                mailsActiveTab === 'inbox'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <EnvelopeIcon className="h-4 w-4" />
+                Inbox
+              </div>
+            </button>
+            <button
+              onClick={() => setMailsActiveTab('analytics')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                mailsActiveTab === 'analytics'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <ChartBarIcon className="h-4 w-4" />
+                Analytics
+              </div>
+            </button>
+          </div>
+
+          {mailsActiveTab === 'inbox' && (
+            <button
+              onClick={() => setEmailComposerModal({ show: true, mode: 'compose' })}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition-all hover:shadow-xl hover:shadow-blue-500/40"
+            >
+              <PlusIcon className="h-5 w-5" />
+              Compose
+            </button>
+          )}
+        </div>
+
+        {/* Content based on active tab */}
+        {mailsActiveTab === 'inbox' ? (
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+            <EmailList
+              onComposeReply={(email: any) => {
+                setEmailComposerModal({
+                  show: true,
+                  mode: 'reply',
+                  replyToEmail: email,
+                  prefilledTo: email.from_email,
+                  prefilledSubject: `Re: ${email.subject}`,
+                  contactId: email.contact_id
+                });
+              }}
+              onComposeForward={(email: any) => {
+                setEmailComposerModal({
+                  show: true,
+                  mode: 'forward',
+                  replyToEmail: email,
+                  prefilledSubject: `Fwd: ${email.subject}`
+                });
+              }}
+            />
+          </div>
+        ) : (
+          <EmailPerformanceDashboard />
+        )}
+      </div>
+    );
+  };
+
   const renderAnalyticsView = () => {
     // Calculate metrics
     const totalClients = clients.length;
@@ -4132,8 +4222,13 @@ const DashboardLayout: FC = () => {
                       <button
                         key={provider.id}
                         onClick={() => {
-                          alert(`Connect to ${provider.name}\n\nThis will open the OAuth flow or API key configuration for ${provider.name}.`);
-                          setExpandedIntegration(null);
+                          if (category.id === 'email') {
+                            setEmailSetupModal({ show: true, provider: provider.id });
+                            setExpandedIntegration(null);
+                          } else {
+                            alert(`Connect to ${provider.name}\n\nThis will open the OAuth flow or API key configuration for ${provider.name}.`);
+                            setExpandedIntegration(null);
+                          }
                         }}
                         className="w-full flex items-center gap-3 rounded-2xl border border-white/60 bg-white/80 p-3 text-left shadow-sm hover:bg-white hover:shadow-md transition-all dark:border-slate-700/60 dark:bg-slate-900/80 dark:hover:bg-slate-900"
                       >
@@ -4165,6 +4260,361 @@ const DashboardLayout: FC = () => {
             <br />
             Have a suggestion? Let us know!
           </p>
+        </div>
+      </div>
+    );
+  };
+
+  const renderEmailSetupModal = () => {
+    const [setupMode, setSetupMode] = useState<'oauth' | 'manual'>('oauth');
+    const [emailForm, setEmailForm] = useState({
+      name: '',
+      email: '',
+      password: '',
+      smtpHost: '',
+      smtpPort: 587,
+      smtpSecure: false,
+      imapHost: '',
+      imapPort: 993,
+      imapSecure: true,
+    });
+    const [isConnecting, setIsConnecting] = useState(false);
+    const [testResult, setTestResult] = useState<any>(null);
+
+    const provider = emailSetupModal.provider;
+    const isOAuthProvider = provider === 'gmail' || provider === 'outlook';
+
+    const handleOAuthConnect = async () => {
+      if (!provider) return;
+      
+      setIsConnecting(true);
+      try {
+        const response = await fetch('/api/integrations/email/oauth/initiate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify({ provider }),
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+          // Redirect to OAuth provider
+          window.location.href = data.authUrl;
+        } else {
+          alert('Failed to start OAuth flow: ' + data.error);
+        }
+      } catch (error) {
+        console.error('OAuth initiation error:', error);
+        alert('Failed to start OAuth flow');
+      } finally {
+        setIsConnecting(false);
+      }
+    };
+
+    const handleManualTest = async () => {
+      setIsConnecting(true);
+      setTestResult(null);
+      
+      try {
+        const credentials = {
+          provider: provider,
+          email: emailForm.email,
+          password: emailForm.password,
+          smtpHost: emailForm.smtpHost,
+          smtpPort: emailForm.smtpPort,
+          smtpSecure: emailForm.smtpSecure,
+          imapHost: emailForm.imapHost,
+          imapPort: emailForm.imapPort,
+          imapSecure: emailForm.imapSecure,
+          username: emailForm.email,
+        };
+
+        const response = await fetch('/api/integrations/email/test', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify({ credentials }),
+        });
+
+        const result = await response.json();
+        setTestResult(result);
+      } catch (error) {
+        console.error('Test connection error:', error);
+        setTestResult({
+          success: false,
+          error: 'Network error occurred',
+        });
+      } finally {
+        setIsConnecting(false);
+      }
+    };
+
+    const handleManualSave = async () => {
+      if (!testResult?.success) {
+        alert('Please test the connection first');
+        return;
+      }
+
+      setIsConnecting(true);
+      try {
+        const credentials = {
+          provider: provider,
+          email: emailForm.email,
+          password: emailForm.password,
+          smtpHost: emailForm.smtpHost,
+          smtpPort: emailForm.smtpPort,
+          smtpSecure: emailForm.smtpSecure,
+          imapHost: emailForm.imapHost,
+          imapPort: emailForm.imapPort,
+          imapSecure: emailForm.imapSecure,
+          username: emailForm.email,
+        };
+
+        const response = await fetch('/api/integrations/email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify({
+            name: emailForm.name || `${provider} Account`,
+            provider: provider,
+            credentials,
+          }),
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+          setEmailSetupModal({ show: false });
+          alert('Email integration saved successfully!');
+        } else {
+          alert('Failed to save integration: ' + result.error);
+        }
+      } catch (error) {
+        console.error('Save integration error:', error);
+        alert('Failed to save integration');
+      } finally {
+        setIsConnecting(false);
+      }
+    };
+
+    if (!emailSetupModal.show) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="mx-4 w-full max-w-2xl rounded-3xl border border-white/60 bg-white/90 p-8 shadow-2xl backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/90">
+          {/* Header */}
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                Connect {provider?.charAt(0).toUpperCase()}{provider?.slice(1)} Account
+              </h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Set up your email integration to send and receive emails
+              </p>
+            </div>
+            <button
+              onClick={() => setEmailSetupModal({ show: false })}
+              className="rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+            >
+              <XMarkIcon className="h-6 w-6" />
+            </button>
+          </div>
+
+          {/* Setup Mode Tabs */}
+          <div className="mb-6 flex rounded-2xl bg-slate-100 p-1 dark:bg-slate-800">
+            {isOAuthProvider && (
+              <button
+                onClick={() => setSetupMode('oauth')}
+                className={`flex-1 rounded-xl px-4 py-2 text-sm font-medium transition-all ${
+                  setupMode === 'oauth'
+                    ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-slate-100'
+                    : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'
+                }`}
+              >
+                OAuth (Recommended)
+              </button>
+            )}
+            <button
+              onClick={() => setSetupMode('manual')}
+              className={`flex-1 rounded-xl px-4 py-2 text-sm font-medium transition-all ${
+                setupMode === 'manual'
+                  ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-slate-100'
+                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'
+              }`}
+            >
+              {isOAuthProvider ? 'Manual Setup' : 'SMTP/IMAP Setup'}
+            </button>
+          </div>
+
+          {/* OAuth Setup */}
+          {setupMode === 'oauth' && isOAuthProvider && (
+            <div className="space-y-6">
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+                <h3 className="mb-2 font-semibold text-blue-900 dark:text-blue-100">
+                  OAuth Authentication
+                </h3>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  Click the button below to authenticate with {provider?.charAt(0).toUpperCase()}{provider?.slice(1)}. 
+                  You'll be redirected to their secure login page.
+                </p>
+              </div>
+
+              <button
+                onClick={handleOAuthConnect}
+                disabled={isConnecting}
+                className="w-full rounded-2xl bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4 text-lg font-semibold text-white shadow-lg hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 transition-all"
+              >
+                {isConnecting ? 'Connecting...' : `Connect with ${provider?.charAt(0).toUpperCase()}{provider?.slice(1)}`}
+              </button>
+            </div>
+          )}
+
+          {/* Manual Setup */}
+          {setupMode === 'manual' && (
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Integration Name
+                  </label>
+                  <input
+                    type="text"
+                    value={emailForm.name}
+                    onChange={(e) => setEmailForm({ ...emailForm, name: e.target.value })}
+                    placeholder={`My ${provider?.charAt(0).toUpperCase()}{provider?.slice(1)} Account`}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={emailForm.email}
+                    onChange={(e) => setEmailForm({ ...emailForm, email: e.target.value })}
+                    placeholder="your.email@example.com"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Password {provider === 'yahoo' && '(App Password)'}
+                  </label>
+                  <input
+                    type="password"
+                    value={emailForm.password}
+                    onChange={(e) => setEmailForm({ ...emailForm, password: e.target.value })}
+                    placeholder="Your email password"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                  />
+                </div>
+
+                {provider === 'smtp' && (
+                  <>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                          SMTP Host
+                        </label>
+                        <input
+                          type="text"
+                          value={emailForm.smtpHost}
+                          onChange={(e) => setEmailForm({ ...emailForm, smtpHost: e.target.value })}
+                          placeholder="smtp.example.com"
+                          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                          SMTP Port
+                        </label>
+                        <input
+                          type="number"
+                          value={emailForm.smtpPort}
+                          onChange={(e) => setEmailForm({ ...emailForm, smtpPort: parseInt(e.target.value) })}
+                          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                          IMAP Host
+                        </label>
+                        <input
+                          type="text"
+                          value={emailForm.imapHost}
+                          onChange={(e) => setEmailForm({ ...emailForm, imapHost: e.target.value })}
+                          placeholder="imap.example.com"
+                          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                          IMAP Port
+                        </label>
+                        <input
+                          type="number"
+                          value={emailForm.imapPort}
+                          onChange={(e) => setEmailForm({ ...emailForm, imapPort: parseInt(e.target.value) })}
+                          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Test Result */}
+              {testResult && (
+                <div className={`rounded-2xl border p-4 ${
+                  testResult.success
+                    ? 'border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-900/20 dark:text-green-200'
+                    : 'border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-200'
+                }`}>
+                  <h4 className="font-semibold mb-1">
+                    {testResult.success ? 'Connection Successful!' : 'Connection Failed'}
+                  </h4>
+                  <p className="text-sm">{testResult.message}</p>
+                  {testResult.details && (
+                    <div className="mt-2 text-xs space-y-1">
+                      <div>SMTP: {testResult.details.smtpConnected ? '✅' : '❌'}</div>
+                      <div>Auth: {testResult.details.authValid ? '✅' : '❌'}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={handleManualTest}
+                  disabled={isConnecting || !emailForm.email || !emailForm.password}
+                  className="flex-1 rounded-2xl border border-blue-500 bg-transparent px-6 py-3 text-blue-600 hover:bg-blue-50 disabled:opacity-50 transition-all dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                >
+                  {isConnecting ? 'Testing...' : 'Test Connection'}
+                </button>
+                <button
+                  onClick={handleManualSave}
+                  disabled={isConnecting || !testResult?.success}
+                  className="flex-1 rounded-2xl bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-3 text-white hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 transition-all"
+                >
+                  {isConnecting ? 'Saving...' : 'Save Integration'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -5844,6 +6294,7 @@ const DashboardLayout: FC = () => {
                   className="w-full bg-transparent text-base text-slate-700 placeholder:text-slate-400 focus:outline-none dark:text-slate-200 dark:placeholder:text-slate-500"
                 />
               </div>
+              
               <ThemeToggle className="hidden md:flex" />
               <button
                 type="button"
@@ -5879,6 +6330,8 @@ const DashboardLayout: FC = () => {
               renderCalendarView()
             ) : activeNavItem === 'Invoices' ? (
               renderInvoicesView()
+            ) : activeNavItem === 'Mails' ? (
+              renderMailsView()
             ) : activeNavItem === 'Analytics' ? (
               renderAnalyticsView()
             ) : activeNavItem === 'Integrations' ? (
@@ -6551,6 +7004,18 @@ const DashboardLayout: FC = () => {
       {renderAddCredentialModal()}
       {renderEditTaskModal()}
       {renderChangePasswordModal()}
+      {renderEmailSetupModal()}
+      
+      {/* Email Composer Modal */}
+      <EmailComposer
+        isOpen={emailComposerModal.show}
+        onClose={() => setEmailComposerModal({ show: false })}
+        mode={emailComposerModal.mode}
+        replyToEmail={emailComposerModal.replyToEmail}
+        prefilledTo={emailComposerModal.prefilledTo}
+        prefilledSubject={emailComposerModal.prefilledSubject}
+        contactId={emailComposerModal.contactId}
+      />
     </div>
   );
 
