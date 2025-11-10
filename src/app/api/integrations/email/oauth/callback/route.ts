@@ -64,6 +64,7 @@ export async function GET(request: NextRequest) {
     let stateData;
     try {
       stateData = JSON.parse(Buffer.from(state, 'base64').toString());
+      console.log('Decoded state data:', stateData);
     } catch (e) {
       console.error('Invalid state parameter:', e);
       return NextResponse.redirect(
@@ -74,8 +75,9 @@ export async function GET(request: NextRequest) {
     const { provider, userId, nonce } = stateData;
 
     if (!provider || !userId) {
+      console.error('Missing required state fields:', { provider, userId, hasNonce: !!nonce, fullState: stateData });
       return NextResponse.redirect(
-        `${appUrl}/settings?tab=integrations&error=Invalid state data`
+        `${appUrl}/settings?tab=integrations&error=Invalid state data (missing provider or userId)`
       );
     }
 
