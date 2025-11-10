@@ -668,12 +668,72 @@ const DashboardLayout: FC = () => {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleWindowFocus);
-    
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleWindowFocus);
     };
   }, [clients.length]);
+
+  // Handle OAuth callback success
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const oauthSuccess = params.get('oauth_success');
+    const provider = params.get('provider');
+    const email = params.get('email');
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+    const clientId = params.get('client_id');
+    const clientSecret = params.get('client_secret');
+
+    if (oauthSuccess === 'true' && provider && email && accessToken) {
+      console.log('OAuth success detected, saving email integration...');
+      
+      // Save the email integration
+      const saveIntegration = async () => {
+        try {
+          const token = getAccessToken();
+          if (!token) {
+            console.error('No auth token found');
+            return;
+          }
+
+          const response = await fetch('/api/integrations/email', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              provider,
+              email,
+              access_token: accessToken,
+              refresh_token: refreshToken,
+              client_id: clientId,
+              client_secret: clientSecret,
+            }),
+          });
+
+          if (response.ok) {
+            console.log('Email integration saved successfully');
+            alert(`✅ Gmail connected successfully!\n\nEmail: ${email}\n\nYou can now sync emails from this account.`);
+            
+            // Clean up URL
+            window.history.replaceState({}, document.title, '/dashboard');
+          } else {
+            const error = await response.json();
+            console.error('Failed to save integration:', error);
+            alert(`Failed to save Gmail integration: ${error.error || 'Unknown error'}`);
+          }
+        } catch (error) {
+          console.error('Error saving integration:', error);
+          alert('Failed to save Gmail integration');
+        }
+      };
+
+      saveIntegration();
+    }
+  }, []); // Run once on mount
 
   const navItems = [
     { label: "Dashboard", icon: HomeIcon },
