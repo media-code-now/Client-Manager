@@ -64,6 +64,9 @@ export async function POST(request: NextRequest) {
   try {
     const userId = verifyToken(request);
     const body = await request.json();
+    
+    console.log('Creating email integration for user:', userId);
+    console.log('Request body:', JSON.stringify(body, null, 2));
 
     const { name, provider, credentials } = body;
 
@@ -85,10 +88,13 @@ export async function POST(request: NextRequest) {
 
     // Encrypt credentials
     const encryptedCredentials = encryptEmailCredentials(credentials);
+    console.log('Credentials encrypted successfully');
 
     // Test connection before saving
+    console.log('Testing email connection...');
     const emailService = new EmailService(encryptedCredentials);
     const testResult = await emailService.testConnection();
+    console.log('Connection test result:', testResult);
 
     if (!testResult.success) {
       return NextResponse.json(
@@ -148,8 +154,17 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Failed to create email integration:', error);
+    
+    // Provide more detailed error message
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error details:', errorMessage);
+    
     return NextResponse.json(
-      { error: 'Failed to create integration' },
+      { 
+        error: 'Failed to create integration',
+        details: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined
+      },
       { status: 500 }
     );
   }
