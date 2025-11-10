@@ -50,13 +50,13 @@ export async function GET(request: NextRequest) {
       console.error('OAuth error:', error, errorDescription);
       
       return NextResponse.redirect(
-        `${appUrl}/settings?tab=integrations&error=${encodeURIComponent(errorDescription)}`
+        `${appUrl}/dashboard?error=${encodeURIComponent(errorDescription)}`
       );
     }
 
     if (!code || !state) {
       return NextResponse.redirect(
-        `${appUrl}/settings?tab=integrations&error=Missing authorization code or state`
+        `${appUrl}/dashboard?error=Missing authorization code or state`
       );
     }
 
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
     } catch (e) {
       console.error('Invalid state parameter:', e);
       return NextResponse.redirect(
-        `${appUrl}/settings?tab=integrations&error=Invalid state parameter`
+        `${appUrl}/dashboard?error=Invalid state parameter`
       );
     }
 
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
     if (!provider || !userId) {
       console.error('Missing required state fields:', { provider, userId, hasNonce: !!nonce, fullState: stateData });
       return NextResponse.redirect(
-        `${appUrl}/settings?tab=integrations&error=Invalid state data (missing provider or userId)`
+        `${appUrl}/dashboard?error=Invalid state data (missing provider or userId)`
       );
     }
 
@@ -154,8 +154,7 @@ export async function GET(request: NextRequest) {
 
     // Store tokens temporarily in URL params for the frontend to handle
     // In production, you might want to use a more secure method
-    const successUrl = new URL(`${appUrl}/settings`);
-    successUrl.searchParams.set('tab', 'integrations');
+    const successUrl = new URL(`${appUrl}/dashboard`);
     successUrl.searchParams.set('oauth_success', 'true');
     successUrl.searchParams.set('provider', provider);
     successUrl.searchParams.set('email', tokenResponse.email || '');
@@ -171,7 +170,7 @@ export async function GET(request: NextRequest) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     
     return NextResponse.redirect(
-      `${appUrl}/settings?tab=integrations&error=${encodeURIComponent(
+      `${appUrl}/dashboard?error=${encodeURIComponent(
         error instanceof Error ? error.message : 'OAuth callback failed'
       )}`
     );
