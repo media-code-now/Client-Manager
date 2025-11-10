@@ -63,17 +63,28 @@ export async function GET(request: NextRequest) {
     // Parse state to get provider and user info
     let stateData;
     try {
-      // Google may URL-encode the state, so decode it first
-      const decodedState = decodeURIComponent(state);
-      console.log('Raw state:', state);
-      console.log('Decoded state string:', decodedState);
+      console.log('Raw state from URL:', state);
       
-      stateData = JSON.parse(Buffer.from(decodedState, 'base64').toString());
-      console.log('Parsed state data:', stateData);
+      // Try decoding first (Google may URL-encode it)
+      let stateString = state;
+      try {
+        stateString = decodeURIComponent(state);
+        console.log('After decodeURIComponent:', stateString);
+      } catch (decodeError) {
+        console.log('State was not URL encoded, using as-is');
+      }
+      
+      // Now decode from base64
+      const jsonString = Buffer.from(stateString, 'base64').toString();
+      console.log('Base64 decoded JSON string:', jsonString);
+      
+      stateData = JSON.parse(jsonString);
+      console.log('Successfully parsed state data:', JSON.stringify(stateData));
     } catch (e) {
-      console.error('Invalid state parameter:', e, 'Original state:', state);
+      console.error('Failed to parse state parameter:', e);
+      console.error('Original state value:', state);
       return NextResponse.redirect(
-        `${appUrl}/dashboard?error=Invalid state parameter`
+        `${appUrl}/dashboard?error=Invalid state parameter - check logs`
       );
     }
 
