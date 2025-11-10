@@ -705,12 +705,17 @@ const DashboardLayout: FC = () => {
               'Authorization': `Bearer ${token}`,
             },
             body: JSON.stringify({
+              name: `${provider.charAt(0).toUpperCase() + provider.slice(1)} - ${email}`,
               provider,
               email,
-              access_token: accessToken,
-              refresh_token: refreshToken,
-              client_id: clientId,
-              client_secret: clientSecret,
+              credentials: {
+                email,
+                provider,
+                accessToken,
+                refreshToken,
+                clientId,
+                clientSecret,
+              },
             }),
           });
 
