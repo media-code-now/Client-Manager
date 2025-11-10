@@ -61,6 +61,9 @@ export async function POST(request: NextRequest) {
       timestamp: Date.now(),
     };
     const state = Buffer.from(JSON.stringify(stateData)).toString('base64');
+    
+    console.log('Generated state data:', stateData);
+    console.log('Encoded state:', state);
 
     // Generate OAuth URL
     const authUrl = EmailService.generateOAuthURL(provider as 'gmail' | 'outlook', clientId, state);
