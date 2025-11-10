@@ -707,14 +707,13 @@ const DashboardLayout: FC = () => {
             body: JSON.stringify({
               name: `${provider.charAt(0).toUpperCase() + provider.slice(1)} - ${email}`,
               provider,
-              email,
               credentials: {
                 email,
                 provider,
-                accessToken,
-                refreshToken,
-                clientId,
-                clientSecret,
+                accessToken: accessToken,
+                refreshToken: refreshToken,
+                clientId: clientId,
+                clientSecret: clientSecret,
               },
             }),
           });
