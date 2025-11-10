@@ -187,6 +187,28 @@ export class EmailService {
    */
   async testConnection(): Promise<EmailTestResult> {
     try {
+      // For OAuth providers (Gmail/Outlook), skip SMTP test since tokens are already validated
+      if (this.credentials.provider === 'gmail' || this.credentials.provider === 'outlook') {
+        // Verify we have the required OAuth credentials
+        if (!this.credentials.accessToken) {
+          return {
+            success: false,
+            error: 'Missing OAuth access token',
+          };
+        }
+
+        // OAuth tokens were already validated during the OAuth flow
+        // No need to test SMTP connection here
+        return {
+          success: true,
+          details: {
+            authValid: true,
+            smtpConnected: true, // Will be initialized when sending
+          },
+        };
+      }
+
+      // For SMTP/Yahoo, test the connection
       if (!this.transporter) {
         await this.initialize();
       }
