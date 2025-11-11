@@ -20,8 +20,16 @@ function verifyToken(request: NextRequest) {
   }
 
   const token = authHeader.substring(7);
-  const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: number };
-  return decoded.userId;
+  const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId?: number; id?: number };
+  
+  // Try both userId and id fields
+  const userId = decoded.userId || decoded.id;
+  if (!userId) {
+    console.error('JWT token missing userId/id field:', decoded);
+    throw new Error('JWT token does not contain user ID');
+  }
+  
+  return userId;
 }
 
 /**
