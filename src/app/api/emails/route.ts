@@ -39,6 +39,8 @@ function verifyToken(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const userId = verifyToken(request);
+    console.log('Fetching emails for userId:', userId);
+    
     const { searchParams } = new URL(request.url);
 
     // Pagination
@@ -125,8 +127,17 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Failed to fetch emails:', error);
+    
+    // Provide detailed error message
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error details:', errorMessage);
+    
     return NextResponse.json(
-      { error: 'Failed to fetch emails' },
+      { 
+        error: 'Failed to fetch emails',
+        details: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined
+      },
       { status: 500 }
     );
   }
