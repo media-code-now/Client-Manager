@@ -115,25 +115,53 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Save to database
-    const result = await sql`
-      INSERT INTO integrations (
-        user_id, 
-        type, 
-        name, 
-        status, 
-        config,
-        credentials
-      ) VALUES (
-        ${userId},
-        'email',
-        ${name},
-        'active',
-        ${JSON.stringify({ provider, email: credentials.email })}::jsonb,
-        ${encryptedCredentials}
-      )
-      RETURNING id, name, status, config, created_at
+    // Check if integration already exists for this user with this name
+    const existingIntegrations = await sql`
+      SELECT id, name FROM integrations 
+      WHERE user_id = ${userId} AND name = ${name}
     `;
+
+    let result;
+    let isUpdate = false;
+
+    if (existingIntegrations.length > 0) {
+      // Update existing integration
+      console.log('Updating existing integration:', existingIntegrations[0].id);
+      isUpdate = true;
+      
+      result = await sql`
+        UPDATE integrations
+        SET 
+          status = 'active',
+          config = ${JSON.stringify({ provider, email: credentials.email })}::jsonb,
+          credentials = ${encryptedCredentials},
+          updated_at = NOW()
+        WHERE id = ${existingIntegrations[0].id}
+        RETURNING id, name, status, config, created_at, updated_at
+      `;
+    } else {
+      // Create new integration
+      console.log('Creating new integration');
+      
+      result = await sql`
+        INSERT INTO integrations (
+          user_id, 
+          type, 
+          name, 
+          status, 
+          config,
+          credentials
+        ) VALUES (
+          ${userId},
+          'email',
+          ${name},
+          'active',
+          ${JSON.stringify({ provider, email: credentials.email })}::jsonb,
+          ${encryptedCredentials}
+        )
+        RETURNING id, name, status, config, created_at, updated_at
+      `;
+    }
 
     // Log the connection
     await sql`
@@ -144,12 +172,13 @@ export async function POST(request: NextRequest) {
         data
       ) VALUES (
         ${result[0].id},
-        'connection_established',
+        ${isUpdate ? 'connection_updated' : 'connection_established'},
         'success',
         ${JSON.stringify({ 
           provider, 
           email: credentials.email,
-          testResult: testResult.details 
+          testResult: testResult.details,
+          isUpdate
         })}::jsonb
       )
     `;
@@ -157,8 +186,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       integration: result[0],
-      testResult
-    }, { status: 201 });
+      testResult,
+      action: isUpdate ? 'updated' : 'created'
+    }, { status: isUpdate ? 200 : 201 });
 
   } catch (error) {
     console.error('Failed to create email integration:', error);
