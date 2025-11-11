@@ -7,10 +7,10 @@ export const runtime = 'nodejs';
 const sql = neon(process.env.DATABASE_URL!);
 
 /**
- * POST /api/setup/fix-credentials-column
+ * GET /api/setup/fix-credentials-column
  * Fix the credentials column type from jsonb to text
  */
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     console.log('Fixing integrations.credentials column type...');
 
