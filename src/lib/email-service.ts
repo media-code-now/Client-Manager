@@ -99,6 +99,7 @@ export class EmailService {
       throw new Error('Gmail OAuth tokens are required');
     }
 
+    // Create OAuth2 client for token management
     const oauth2Client = new google.auth.OAuth2(
       this.credentials.clientId,
       this.credentials.clientSecret,
@@ -110,6 +111,18 @@ export class EmailService {
       refresh_token: this.credentials.refreshToken,
     });
 
+    // Get fresh access token (will automatically refresh if needed)
+    try {
+      const { token } = await oauth2Client.getAccessToken();
+      if (token) {
+        this.credentials.accessToken = token;
+      }
+    } catch (error) {
+      console.error('Failed to refresh Gmail access token:', error);
+      // Continue with existing token, let nodemailer handle refresh
+    }
+
+    // Create transporter with OAuth2
     this.transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -120,7 +133,7 @@ export class EmailService {
         refreshToken: this.credentials.refreshToken,
         accessToken: this.credentials.accessToken,
       },
-    });
+    } as any); // Type assertion needed for OAuth2 auth type
   }
 
   /**
