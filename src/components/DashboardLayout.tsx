@@ -335,6 +335,7 @@ const DashboardLayout: FC = () => {
   const [showMobileMenu, setShowMobileMenu] = useState<boolean>(false);
   const [profileSaveMessage, setProfileSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [mailsActiveTab, setMailsActiveTab] = useState<'inbox' | 'analytics'>('inbox');
+  const [isSyncingEmails, setIsSyncingEmails] = useState(false);
 
   // Toggle password visibility
   const togglePasswordVisibility = (credentialId: string) => {
@@ -738,6 +739,34 @@ const DashboardLayout: FC = () => {
       saveIntegration();
     }
   }, []); // Run once on mount
+
+  // Sync emails manually
+  const handleSyncEmails = async () => {
+    try {
+      setIsSyncingEmails(true);
+      const token = getAccessToken();
+      
+      const response = await fetch('/api/cron/sync-emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        alert(`✅ Email sync completed!\n\n${data.summary || 'Emails synced successfully'}`);
+      } else {
+        const error = await response.json();
+        alert(`Failed to sync emails: ${error.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error syncing emails:', error);
+      alert('Failed to sync emails');
+    } finally {
+      setIsSyncingEmails(false);
+    }
+  };
 
   const navItems = [
     { label: "Dashboard", icon: HomeIcon },
@@ -3199,13 +3228,35 @@ const DashboardLayout: FC = () => {
           </div>
 
           {mailsActiveTab === 'inbox' && (
-            <button
-              onClick={() => setEmailComposerModal({ show: true, mode: 'compose' })}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition-all hover:shadow-xl hover:shadow-blue-500/40"
-            >
-              <PlusIcon className="h-5 w-5" />
-              Compose
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleSyncEmails}
+                disabled={isSyncingEmails}
+                className="flex items-center gap-2 rounded-xl bg-slate-100 dark:bg-slate-700 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 shadow-sm transition-all hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <svg
+                  className={`h-4 w-4 ${isSyncingEmails ? 'animate-spin' : ''}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+                {isSyncingEmails ? 'Syncing...' : 'Sync Emails'}
+              </button>
+              <button
+                onClick={() => setEmailComposerModal({ show: true, mode: 'compose' })}
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition-all hover:shadow-xl hover:shadow-blue-500/40"
+              >
+                <PlusIcon className="h-5 w-5" />
+                Compose
+              </button>
+            </div>
           )}
         </div>
 
