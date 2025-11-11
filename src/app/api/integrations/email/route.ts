@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
         created_at,
         updated_at
       FROM integrations 
-      WHERE user_id = ${userId} AND type = 'email'
+      WHERE user_id::integer = ${userId} AND type = 'email'
       ORDER BY created_at DESC
     `;
 
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
     // Check if integration already exists for this user with this name
     const existingIntegrations = await sql`
       SELECT id, name FROM integrations 
-      WHERE user_id = ${userId} AND name = ${name}
+      WHERE user_id::integer = ${userId} AND name = ${name}
     `;
 
     let result;

@@ -55,8 +55,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const integrationId = searchParams.get('integrationId');
 
-    // Build query
-    let whereConditions = [`i.user_id = ${userId}`];
+    // Build query with proper type casting for user_id
+    let whereConditions = [`i.user_id::integer = ${userId}`];
     
     if (contactId) {
       whereConditions.push(`e.contact_id = ${contactId}`);
@@ -160,11 +160,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify ownership
+    // Verify ownership (with type cast for user_id)
     const integration = await sql`
       SELECT id, credentials
       FROM integrations
-      WHERE id = ${integrationId} AND user_id = ${userId} AND type = 'email' AND status = 'active'
+      WHERE id = ${integrationId} AND user_id::integer = ${userId} AND type = 'email' AND status = 'active'
     `;
 
     if (integration.length === 0) {

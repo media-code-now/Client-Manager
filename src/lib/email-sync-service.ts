@@ -608,7 +608,7 @@ export class EmailSyncService {
     // Try to find existing contact
     const existing = await sql`
       SELECT id FROM clients 
-      WHERE user_id = ${this.userId} 
+      WHERE user_id::integer = ${this.userId} 
       AND LOWER(email) = LOWER(${email})
       LIMIT 1
     `;
@@ -621,46 +621,52 @@ export class EmailSyncService {
     const [firstName, ...lastNameParts] = (name || email.split('@')[0]).split(' ');
     const lastName = lastNameParts.join(' ') || '';
 
-    const newContact = await sql`
-      INSERT INTO clients (
-        user_id,
-        first_name,
-        last_name,
-        email,
-        status,
-        source
-      ) VALUES (
-        ${this.userId},
-        ${firstName},
-        ${lastName},
-        ${email},
-        'lead',
-        'email_sync'
-      )
-      RETURNING id
-    `;
-
-    // Log contact creation
-    await sql`
-      INSERT INTO integration_logs (
-        integration_id,
-        event_type,
-        status,
-        data
-      ) VALUES (
-        ${this.integrationId},
-        'contact_created',
-        'success',
-        ${JSON.stringify({ 
+    try {
+      const newContact = await sql`
+        INSERT INTO clients (
+          user_id,
+          first_name,
+          last_name,
           email,
-          name,
-          contactId: newContact[0].id,
-          timestamp: new Date().toISOString()
-        })}::jsonb
-      )
-    `;
+          status,
+          source
+        ) VALUES (
+          ${this.userId},
+          ${firstName},
+          ${lastName},
+          ${email},
+          'lead',
+          'email_sync'
+        )
+        RETURNING id
+      `;
 
-    return newContact[0].id;
+      // Log contact creation
+      await sql`
+        INSERT INTO integration_logs (
+          integration_id,
+          event_type,
+          status,
+          data
+        ) VALUES (
+          ${this.integrationId},
+          'contact_created',
+          'success',
+          ${JSON.stringify({ 
+            email,
+            name,
+            contactId: newContact[0].id,
+            timestamp: new Date().toISOString()
+          })}::jsonb
+        )
+      `;
+
+      return newContact[0].id;
+    } catch (error) {
+      console.error('Failed to create contact from email:', { email, name, error });
+      // Return null if contact creation fails - email will still be saved without contact link
+      return null;
+    }
   }
 
   /**

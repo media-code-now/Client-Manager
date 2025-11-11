@@ -64,11 +64,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get integration credentials and user email
+    // Get integration credentials and user email (with type cast for user_id)
     const integration = await sql`
       SELECT id, name, credentials, status, config
       FROM integrations 
-      WHERE id = ${integrationId} AND user_id = ${userId} AND type = 'email'
+      WHERE id = ${integrationId} AND user_id::integer = ${userId} AND type = 'email'
     `;
 
     if (integration.length === 0) {
