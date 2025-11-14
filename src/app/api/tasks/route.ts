@@ -47,14 +47,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const userId = decoded.id; // Get user ID from JWT
+
     const client = new Client({ connectionString: getDatabaseUrl() });
     await client.connect();
 
-    // Ensure minimal tasks table exists
+    // Ensure minimal tasks table exists with user_id
     await client.query(`
       CREATE TABLE IF NOT EXISTS tasks (
         id SERIAL PRIMARY KEY,
         client_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
         title TEXT NOT NULL,
         description TEXT,
         status TEXT DEFAULT 'Open',
@@ -65,9 +68,32 @@ export async function GET(request: NextRequest) {
       );
     `);
 
+    // Add user_id column if it doesn't exist (for existing tables)
+    await client.query(`
+      ALTER TABLE tasks 
+      ADD COLUMN IF NOT EXISTS user_id INTEGER;
+    `);
+
+    // Update NULL user_id values to the current user (for migration)
+    await client.query(`
+      UPDATE tasks 
+      SET user_id = $1 
+      WHERE user_id IS NULL;
+    `, [userId]);
+
+    // Set NOT NULL constraint after populating
+    await client.query(`
+      ALTER TABLE tasks 
+      ALTER COLUMN user_id SET NOT NULL;
+    `);
+
     const result = await client.query(
       `SELECT id::text as "id", client_id::text as "clientId", title, description,
-              status, priority, due_date as "dueDate" FROM tasks ORDER BY updated_at DESC`
+              status, priority, due_date as "dueDate" 
+       FROM tasks 
+       WHERE user_id = $1 
+       ORDER BY updated_at DESC`,
+      [userId]
     );
 
     await client.end();
@@ -101,14 +127,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let decoded: DecodedToken;
     try {
-      jwt.verify(token, jwtSecret);
+      decoded = jwt.verify(token, jwtSecret) as DecodedToken;
     } catch (error) {
       return NextResponse.json(
         { success: false, error: 'Invalid or expired token' },
         { status: 401 }
       );
     }
+
+    const userId = decoded.id; // Get user ID from JWT
 
     const body = await request.json();
     const { clientId, title, description = null, status = 'Open', priority = 'Medium', dueDate = null } = body || {};
@@ -123,11 +152,12 @@ export async function POST(request: NextRequest) {
     const client = new Client({ connectionString: getDatabaseUrl() });
     await client.connect();
 
-    // Ensure tasks table exists
+    // Ensure tasks table exists with user_id
     await client.query(`
       CREATE TABLE IF NOT EXISTS tasks (
         id SERIAL PRIMARY KEY,
         client_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
         title TEXT NOT NULL,
         description TEXT,
         status TEXT DEFAULT 'Open',
@@ -138,11 +168,17 @@ export async function POST(request: NextRequest) {
       );
     `);
 
+    // Add user_id column if it doesn't exist (for existing tables)
+    await client.query(`
+      ALTER TABLE tasks 
+      ADD COLUMN IF NOT EXISTS user_id INTEGER;
+    `);
+
     const result = await client.query(
-      `INSERT INTO tasks (client_id, title, description, status, priority, due_date, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+      `INSERT INTO tasks (client_id, user_id, title, description, status, priority, due_date, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
        RETURNING id::text as "id", client_id::text as "clientId", title, description, status, priority, due_date as "dueDate"`,
-      [parseInt(clientId, 10), title, description, status, priority, dueDate]
+      [parseInt(clientId, 10), userId, title, description, status, priority, dueDate]
     );
 
     await client.end();
