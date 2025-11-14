@@ -6468,13 +6468,13 @@ const DashboardLayout: FC = () => {
                   </div>
 
                   {/* Weather Widget */}
-                  <div className="w-full md:min-w-[280px] md:w-auto rounded-3xl border border-white/60 bg-gradient-to-br from-blue-50 to-blue-100/50 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:from-blue-950/30 dark:to-blue-900/20">
+                  <div className="w-full md:w-[320px] md:h-[300px] rounded-3xl border border-white/60 bg-gradient-to-br from-blue-50 to-blue-100/50 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:from-blue-950/30 dark:to-blue-900/20 flex flex-col">
                     {isLoadingWeather ? (
-                      <div className="flex items-center justify-center py-4">
+                      <div className="flex items-center justify-center py-4 flex-1">
                         <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600"></div>
                       </div>
                     ) : weather ? (
-                      <div className="space-y-4">
+                      <div className="space-y-4 flex-1 flex flex-col">
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">
@@ -6489,7 +6489,7 @@ const DashboardLayout: FC = () => {
                           </div>
                         </div>
                         
-                        <div className="border-t border-blue-200/50 dark:border-blue-800/50 pt-4">
+                        <div className="border-t border-blue-200/50 dark:border-blue-800/50 pt-4 flex-1">
                           <p className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-3">
                             {weather.description}
                           </p>
@@ -6520,7 +6520,7 @@ const DashboardLayout: FC = () => {
                         </div>
                       </div>
                     ) : (
-                      <div className="text-center py-4">
+                      <div className="text-center py-4 flex-1 flex items-center justify-center flex-col">
                         <CloudIcon className="mx-auto h-12 w-12 text-blue-400 mb-2" />
                         <p className="text-sm text-blue-600 dark:text-blue-400">Weather unavailable</p>
                       </div>
@@ -6528,8 +6528,8 @@ const DashboardLayout: FC = () => {
                   </div>
 
                   {/* Calendar Widget */}
-                  <div className="w-full md:min-w-[280px] md:w-auto rounded-3xl border border-white/60 bg-gradient-to-br from-purple-50 to-purple-100/50 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:from-purple-950/30 dark:to-purple-900/20">
-                    <div className="space-y-4">
+                  <div className="w-full md:w-[320px] md:h-[300px] rounded-3xl border border-white/60 bg-gradient-to-br from-purple-50 to-purple-100/50 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:from-purple-950/30 dark:to-purple-900/20 flex flex-col">
+                    <div className="space-y-4 flex-1 flex flex-col">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className="rounded-lg bg-purple-200/50 p-2 dark:bg-purple-900/30">
@@ -6551,11 +6551,11 @@ const DashboardLayout: FC = () => {
                         </div>
                       </div>
                       
-                      <div className="border-t border-purple-200/50 dark:border-purple-800/50 pt-4">
+                      <div className="border-t border-purple-200/50 dark:border-purple-800/50 pt-4 flex-1 flex flex-col min-h-0">
                         <p className="text-sm font-medium text-purple-800 dark:text-purple-200 mb-3">
                           Today&apos;s Schedule
                         </p>
-                        <div className="space-y-2">
+                        <div className="space-y-2 overflow-y-auto flex-1">
                           {tasks.filter(task => {
                             if (!task.dueDate) return false;
                             const today = new Date().toDateString();
