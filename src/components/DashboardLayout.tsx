@@ -1573,6 +1573,109 @@ const DashboardLayout: FC = () => {
     }
   };
 
+  const handleAddTask = async (newTaskData: Omit<Task, 'id'>) => {
+    try {
+      const token = getAccessToken();
+      if (!token) {
+        console.error('No token for adding task');
+        alert('Authentication error. Please log in again.');
+        return;
+      }
+
+      console.log('Attempting to add task:', newTaskData);
+
+      const response = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          clientId: newTaskData.clientId,
+          title: newTaskData.title,
+          description: newTaskData.description || '',
+          status: newTaskData.status || 'Open',
+          priority: newTaskData.priority || 'Medium',
+          dueDate: newTaskData.dueDate || null,
+        }),
+      });
+
+      console.log('Add task response status:', response.status);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Add task response data:', data);
+        
+        if (data.success && data.task) {
+          setTasks(prev => [...prev, data.task]);
+          setShowAddTaskModal(false);
+          setSelectedDueDate("");
+          setShowCalendar(false);
+          console.log('✅ Task added successfully:', data.task);
+        } else {
+          console.error('API returned success=false:', data);
+          alert('Failed to add task: ' + (data.error || 'Unknown error'));
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Failed to add task:', response.status, errorData);
+        alert(`Failed to add task: ${errorData.error || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error adding task:', error);
+      alert('Network error. Please check your connection and try again.');
+    }
+  };
+
+  const handleUpdateTask = async (taskId: string, updates: Partial<Omit<Task, 'id'>>) => {
+    try {
+      const token = getAccessToken();
+      if (!token) {
+        console.error('No token for updating task');
+        alert('Authentication error. Please log in again.');
+        return;
+      }
+
+      console.log('Attempting to update task:', taskId, updates);
+
+      const response = await fetch('/api/tasks', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: taskId,
+          ...updates,
+        }),
+      });
+
+      console.log('Update task response status:', response.status);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Update task response data:', data);
+        
+        if (data.success && data.task) {
+          setTasks(prev => prev.map(task => 
+            task.id === taskId ? data.task : task
+          ));
+          console.log('✅ Task updated successfully:', data.task);
+        } else {
+          console.error('API returned success=false:', data);
+          alert('Failed to update task: ' + (data.error || 'Unknown error'));
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Failed to update task:', response.status, errorData);
+        alert(`Failed to update task: ${errorData.error || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error updating task:', error);
+      alert('Network error. Please check your connection and try again.');
+    }
+  };
+
   const renderAddClientModal = () => {
     if (!showAddClientModal) return null;
 
@@ -2656,8 +2759,7 @@ const DashboardLayout: FC = () => {
                 return;
               }
 
-              const newTask: Task = {
-                id: `task-${Date.now()}`,
+              const newTask: Omit<Task, 'id'> = {
                 clientId,
                 title: formData.get('title') as string,
                 description: formData.get('description') as string || undefined,
@@ -2665,10 +2767,7 @@ const DashboardLayout: FC = () => {
                 priority: formData.get('priority') as TaskPriority,
                 dueDate: formData.get('dueDate') as string || undefined,
               };
-              setTasks(prev => [...prev, newTask]);
-              setShowAddTaskModal(false);
-              setSelectedDueDate("");
-              setShowCalendar(false);
+              handleAddTask(newTask);
             }}
             className="space-y-4"
           >
@@ -7100,6 +7199,7 @@ const DashboardLayout: FC = () => {
                           {!isCompleted && (
                             <button
                               type="button"
+                              onClick={() => handleUpdateTask(task.id, { status: 'Done' })}
                               className={classNames(
                                 "rounded-full border border-white/60 bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 shadow-lg shadow-slate-900/10 hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:bg-slate-900",
                                 iosMotion.hoverButton,

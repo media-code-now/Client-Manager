@@ -192,3 +192,116 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { success: false, error: 'Authorization token required' },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.substring(7);
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      return NextResponse.json(
+        { success: false, error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
+
+    let decoded: DecodedToken;
+    try {
+      decoded = jwt.verify(token, jwtSecret) as DecodedToken;
+    } catch (error) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid or expired token' },
+        { status: 401 }
+      );
+    }
+
+    const userId = decoded.id; // Get user ID from JWT
+
+    const body = await request.json();
+    const { id, clientId, title, description, status, priority, dueDate } = body || {};
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: 'Missing required field: id' },
+        { status: 400 }
+      );
+    }
+
+    const client = new Client({ connectionString: getDatabaseUrl() });
+    await client.connect();
+
+    // Build dynamic update query
+    const updates: string[] = [];
+    const values: any[] = [];
+    let paramCount = 1;
+
+    if (clientId !== undefined) {
+      updates.push(`client_id = $${paramCount++}`);
+      values.push(parseInt(clientId, 10));
+    }
+    if (title !== undefined) {
+      updates.push(`title = $${paramCount++}`);
+      values.push(title);
+    }
+    if (description !== undefined) {
+      updates.push(`description = $${paramCount++}`);
+      values.push(description);
+    }
+    if (status !== undefined) {
+      updates.push(`status = $${paramCount++}`);
+      values.push(status);
+    }
+    if (priority !== undefined) {
+      updates.push(`priority = $${paramCount++}`);
+      values.push(priority);
+    }
+    if (dueDate !== undefined) {
+      updates.push(`due_date = $${paramCount++}`);
+      values.push(dueDate);
+    }
+
+    if (updates.length === 0) {
+      await client.end();
+      return NextResponse.json(
+        { success: false, error: 'No fields to update' },
+        { status: 400 }
+      );
+    }
+
+    updates.push(`updated_at = NOW()`);
+    values.push(userId); // for WHERE user_id
+    values.push(parseInt(id, 10)); // for WHERE id
+
+    const result = await client.query(
+      `UPDATE tasks 
+       SET ${updates.join(', ')}
+       WHERE user_id = $${paramCount++} AND id = $${paramCount++}
+       RETURNING id::text as "id", client_id::text as "clientId", title, description, status, priority, due_date as "dueDate"`,
+      values
+    );
+
+    await client.end();
+
+    if (result.rows.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'Task not found or unauthorized' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true, task: result.rows[0] });
+  } catch (error) {
+    console.error('Tasks PUT error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
