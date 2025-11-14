@@ -1,11 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
+import jwt from 'jsonwebtoken';
 
 const sql = neon(process.env.DATABASE_URL!);
 
 // Force dynamic rendering (don't prerender at build time)
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+
+interface DecodedToken {
+  id: number;
+  userId?: number;
+  uuid: string;
+  name: string;
+  email: string;
+  role: string;
+  iat: number;
+  exp: number;
+}
 
 // GET /api/appearance-preferences - Get user appearance preferences
 export async function GET(request: NextRequest) {
@@ -15,9 +27,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // For now, we'll use a simple user ID from the token
-    // In production, you'd decode the JWT token properly
-    const userId = "user-1"; // This should come from JWT token
+    // Decode JWT token to get user ID
+    const token = authHeader.substring(7);
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
+    }
+
+    let decoded: DecodedToken;
+    try {
+      decoded = jwt.verify(token, jwtSecret) as DecodedToken;
+    } catch (error) {
+      return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
+    }
+
+    const userId = decoded.userId || decoded.id;
 
     const result = await sql`
       SELECT * FROM appearance_preferences WHERE user_id = ${userId}
@@ -62,7 +86,21 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = "user-1"; // This should come from JWT token
+    // Decode JWT token to get user ID
+    const token = authHeader.substring(7);
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
+    }
+
+    let decoded: DecodedToken;
+    try {
+      decoded = jwt.verify(token, jwtSecret) as DecodedToken;
+    } catch (error) {
+      return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
+    }
+
+    const userId = decoded.userId || decoded.id;
     const body = await request.json();
 
     const {

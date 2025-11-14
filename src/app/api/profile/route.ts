@@ -1,11 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
+import jwt from 'jsonwebtoken';
 
 const sql = neon(process.env.DATABASE_URL!);
 
 // Force dynamic rendering (don't prerender at build time)
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+
+interface DecodedToken {
+  id: number;
+  userId?: number;
+  uuid: string;
+  name: string;
+  email: string;
+  role: string;
+  iat: number;
+  exp: number;
+}
 
 // GET /api/profile - Get user profile
 export async function GET(request: NextRequest) {
@@ -15,22 +27,34 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // For now, we'll use a simple user ID from the token
-    // In production, you'd decode the JWT token properly
-    const userId = "user-1"; // This should come from JWT token
+    // Decode JWT token to get user ID
+    const token = authHeader.substring(7);
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
+    }
+
+    let decoded: DecodedToken;
+    try {
+      decoded = jwt.verify(token, jwtSecret) as DecodedToken;
+    } catch (error) {
+      return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
+    }
+
+    const userId = decoded.userId || decoded.id;
 
     const result = await sql`
       SELECT * FROM user_profiles WHERE id = ${userId}
     `;
 
     if (result.length === 0) {
-      // Return default profile if not exists
+      // Return user info from JWT token if profile doesn't exist
       return NextResponse.json({
         id: userId,
-        name: "John Doe",
-        email: "john.doe@example.com",
-        company: "CRM Solutions Inc.",
-        role: "Account Manager",
+        name: decoded.name,
+        email: decoded.email,
+        company: "",
+        role: decoded.role || "User",
         timezone: "America/New_York",
         language: "en",
         twoFactorEnabled: false,
@@ -58,7 +82,21 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = "user-1"; // This should come from JWT token
+    // Decode JWT token to get user ID
+    const token = authHeader.substring(7);
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
+    }
+
+    let decoded: DecodedToken;
+    try {
+      decoded = jwt.verify(token, jwtSecret) as DecodedToken;
+    } catch (error) {
+      return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
+    }
+
+    const userId = decoded.userId || decoded.id;
     const body = await request.json();
 
     const {
