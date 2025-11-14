@@ -16,12 +16,14 @@ import {
   ComputerDesktopIcon,
   CurrencyDollarIcon,
   DevicePhoneMobileIcon,
+  DocumentDuplicateIcon,
   DocumentTextIcon,
   EnvelopeIcon,
   ExclamationTriangleIcon,
   EyeIcon,
   EyeSlashIcon,
   FolderIcon,
+  GlobeAltIcon,
   HomeIcon,
   InformationCircleIcon,
   KeyIcon,
@@ -29,13 +31,16 @@ import {
   MagnifyingGlassIcon,
   MoonIcon,
   PaintBrushIcon,
+  PencilIcon,
   PlusIcon,
   RectangleStackIcon,
   ShieldCheckIcon,
   Square3Stack3DIcon,
   SunIcon,
+  TrashIcon,
   UserCircleIcon,
   UserGroupIcon,
+  UserIcon,
   XCircleIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
@@ -291,6 +296,7 @@ const DashboardLayout: FC = () => {
   const [taskStatusFilter, setTaskStatusFilter] = useState<string>("All Status");
   const [taskPriorityFilter, setTaskPriorityFilter] = useState<string>("All Priority");
   const [taskCreationContext, setTaskCreationContext] = useState<"client" | "tasks">("client");
+  const [credentialSearchQuery, setCredentialSearchQuery] = useState<string>("");
   const [selectedDueDate, setSelectedDueDate] = useState<string>("");
   const [showCalendar, setShowCalendar] = useState<boolean>(false);
   const [editSelectedDueDate, setEditSelectedDueDate] = useState<string>("");
@@ -774,6 +780,7 @@ const DashboardLayout: FC = () => {
     { label: "Projects", icon: RectangleStackIcon },
     { label: "Tasks", icon: ClipboardDocumentListIcon },
     { label: "Calendar", icon: CalendarIcon },
+    { label: "Credentials", icon: KeyIcon },
     { label: "Invoices", icon: CurrencyDollarIcon },
     { label: "Mails", icon: EnvelopeIcon },
     { label: "Analytics", icon: ChartBarIcon },
@@ -808,11 +815,21 @@ const DashboardLayout: FC = () => {
   }, [tasks]);
 
   const todaysTasks = useMemo(() => {
-    const today = new Date().toDateString();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const sevenDaysFromNow = new Date(today);
+    sevenDaysFromNow.setDate(today.getDate() + 7);
+    
     return tasks.filter((task) => {
-      if (!task.dueDate) return false;
-      const due = new Date(task.dueDate).toDateString();
-      return due === today && task.status !== "Done";
+      if (!task.dueDate || task.status === "Done") return false;
+      const dueDate = new Date(task.dueDate);
+      dueDate.setHours(0, 0, 0, 0);
+      return dueDate >= today && dueDate <= sevenDaysFromNow;
+    }).sort((a, b) => {
+      // Sort by due date, earliest first
+      const dateA = new Date(a.dueDate!);
+      const dateB = new Date(b.dueDate!);
+      return dateA.getTime() - dateB.getTime();
     });
   }, [tasks]);
 
@@ -2904,6 +2921,281 @@ const DashboardLayout: FC = () => {
               </button>
             </div>
           </form>
+        </div>
+      </div>
+    );
+  };
+
+  const renderCredentialsView = () => {
+    // Filter credentials based on search query
+    const filteredCredentials = credentials.filter(credential => {
+      const client = clients.find(c => c.id === credential.clientId);
+      
+      // Search filter
+      const searchMatch = !credentialSearchQuery || 
+        credential.label.toLowerCase().includes(credentialSearchQuery.toLowerCase()) ||
+        credential.username.toLowerCase().includes(credentialSearchQuery.toLowerCase()) ||
+        (credential.url && credential.url.toLowerCase().includes(credentialSearchQuery.toLowerCase())) ||
+        (client && client.name.toLowerCase().includes(credentialSearchQuery.toLowerCase()));
+      
+      return searchMatch;
+    });
+
+    // Sort by client name, then by label
+    const sortedCredentials = [...filteredCredentials].sort((a, b) => {
+      const clientA = clients.find(c => c.id === a.clientId);
+      const clientB = clients.find(c => c.id === b.clientId);
+      
+      const clientNameA = clientA?.name || '';
+      const clientNameB = clientB?.name || '';
+      
+      if (clientNameA !== clientNameB) {
+        return clientNameA.localeCompare(clientNameB);
+      }
+      
+      return a.label.localeCompare(b.label);
+    });
+
+    const togglePasswordVisibility = (credentialId: string) => {
+      setVisiblePasswords(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(credentialId)) {
+          newSet.delete(credentialId);
+        } else {
+          newSet.add(credentialId);
+        }
+        return newSet;
+      });
+    };
+
+    const copyToClipboard = async (text: string, type: string) => {
+      try {
+        await navigator.clipboard.writeText(text);
+        // You can add a toast notification here if you have one
+        console.log(`${type} copied to clipboard`);
+      } catch (err) {
+        console.error('Failed to copy:', err);
+      }
+    };
+
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold text-slate-900 dark:text-slate-100">
+              Credentials
+            </h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Manage all credentials across your clients
+            </p>
+          </div>
+          <button 
+            onClick={() => {
+              // TODO: Implement add credential modal
+              console.log("Add credential clicked");
+            }}
+            className="rounded-2xl bg-blue-600 px-6 py-3 text-sm font-medium text-white shadow-lg shadow-blue-600/25 transition-all hover:bg-blue-700 hover:shadow-blue-600/40 dark:bg-blue-500 dark:hover:bg-blue-600"
+          >
+            + Add New Credential
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-4 md:flex-row md:items-center">
+          <div className="flex-1">
+            <input
+              type="search"
+              value={credentialSearchQuery}
+              onChange={(e) => setCredentialSearchQuery(e.target.value)}
+              placeholder="Search credentials by label, username, URL, or client..."
+              className="w-full rounded-2xl border border-white/60 bg-white/80 px-4 py-3 text-sm shadow-inner shadow-white/40 backdrop-blur-md placeholder:text-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200/60 dark:border-slate-700/60 dark:bg-slate-900/80 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-400 dark:focus:ring-blue-400/30"
+            />
+          </div>
+        </div>
+
+        {/* Credentials Statistics */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg shadow-slate-900/5 backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20">
+            <div className="flex items-center gap-3">
+              <div className="rounded-2xl bg-blue-100 p-3 dark:bg-blue-500/20">
+                <KeyIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+                  {credentials.length}
+                </p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Total Credentials</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg shadow-slate-900/5 backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20">
+            <div className="flex items-center gap-3">
+              <div className="rounded-2xl bg-green-100 p-3 dark:bg-green-500/20">
+                <UserGroupIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+                  {new Set(credentials.map(c => c.clientId)).size}
+                </p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Clients with Credentials</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg shadow-slate-900/5 backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20">
+            <div className="flex items-center gap-3">
+              <div className="rounded-2xl bg-purple-100 p-3 dark:bg-purple-500/20">
+                <MagnifyingGlassIcon className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+                  {sortedCredentials.length}
+                </p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Search Results</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Credentials List */}
+        <div className="space-y-4">
+          {sortedCredentials.length === 0 ? (
+            <div className="rounded-3xl border border-white/60 bg-white/70 p-12 text-center shadow-lg shadow-slate-900/5 backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20">
+              <KeyIcon className="mx-auto h-12 w-12 text-slate-400 dark:text-slate-500" />
+              <h3 className="mt-4 text-lg font-medium text-slate-900 dark:text-slate-100">
+                No credentials found
+              </h3>
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                {credentialSearchQuery
+                  ? "Try adjusting your search query"
+                  : "Add your first credential to get started"}
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
+              {sortedCredentials.map((credential) => {
+                const client = clients.find(c => c.id === credential.clientId);
+                const isPasswordVisible = visiblePasswords.has(credential.id);
+
+                return (
+                  <div
+                    key={credential.id}
+                    className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg shadow-slate-900/5 backdrop-blur-md transition-all hover:shadow-xl dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                            {credential.label}
+                          </h3>
+                        </div>
+                        {client && (
+                          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                            Client: {client.name}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            // TODO: Implement edit credential
+                            console.log("Edit credential:", credential.id);
+                          }}
+                          className="rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                          title="Edit credential"
+                        >
+                          <PencilIcon className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            // TODO: Implement delete credential
+                            console.log("Delete credential:", credential.id);
+                          }}
+                          className="rounded-xl p-2 text-red-500 transition-colors hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-500/20 dark:hover:text-red-300"
+                          title="Delete credential"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 space-y-3">
+                      {/* Username */}
+                      <div className="flex items-center justify-between rounded-2xl bg-slate-50 p-3 dark:bg-slate-800/50">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <UserIcon className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                          <span className="text-sm text-slate-600 dark:text-slate-300 truncate">
+                            {credential.username}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => copyToClipboard(credential.username, 'Username')}
+                          className="ml-2 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+                          title="Copy username"
+                        >
+                          <DocumentDuplicateIcon className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      {/* Password */}
+                      <div className="flex items-center justify-between rounded-2xl bg-slate-50 p-3 dark:bg-slate-800/50">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <KeyIcon className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                          <span className="text-sm text-slate-600 dark:text-slate-300 font-mono truncate">
+                            {isPasswordVisible ? credential.password : credential.maskedValue}
+                          </span>
+                        </div>
+                        <div className="flex gap-1 ml-2">
+                          <button
+                            onClick={() => togglePasswordVisibility(credential.id)}
+                            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+                            title={isPasswordVisible ? "Hide password" : "Show password"}
+                          >
+                            {isPasswordVisible ? (
+                              <EyeSlashIcon className="h-4 w-4" />
+                            ) : (
+                              <EyeIcon className="h-4 w-4" />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => copyToClipboard(credential.password, 'Password')}
+                            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+                            title="Copy password"
+                          >
+                            <DocumentDuplicateIcon className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* URL (if present) */}
+                      {credential.url && (
+                        <div className="flex items-center justify-between rounded-2xl bg-slate-50 p-3 dark:bg-slate-800/50">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <GlobeAltIcon className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                            <a
+                              href={credential.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-blue-600 dark:text-blue-400 hover:underline truncate"
+                            >
+                              {credential.url}
+                            </a>
+                          </div>
+                          <button
+                            onClick={() => copyToClipboard(credential.url!, 'URL')}
+                            className="ml-2 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+                            title="Copy URL"
+                          >
+                            <DocumentDuplicateIcon className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -6443,6 +6735,8 @@ const DashboardLayout: FC = () => {
               renderTasksView()
             ) : activeNavItem === 'Calendar' ? (
               renderCalendarView()
+            ) : activeNavItem === 'Credentials' ? (
+              renderCredentialsView()
             ) : activeNavItem === 'Invoices' ? (
               renderInvoicesView()
             ) : activeNavItem === 'Mails' ? (
@@ -6735,11 +7029,11 @@ const DashboardLayout: FC = () => {
                 </div>
               </section>
 
-              <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-                <section className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg shadow-slate-900/5 backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20 xl:col-span-2">
+              <div className="grid grid-cols-1 gap-6 ">
+                <section className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg shadow-slate-900/5 backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20 ">
                   <div className="flex items-center justify-between">
                     <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                      Today’s tasks
+                      Coming up tasks
                     </h2>
                     <button
                       type="button"
@@ -6751,7 +7045,7 @@ const DashboardLayout: FC = () => {
                   <div className="mt-4 space-y-3">
                     {todaysTasks.length === 0 && (
                       <p className="text-sm text-slate-500 dark:text-slate-400">
-                        Nothing due today. Great job staying ahead!
+                        No tasks due in the next 7 days. Great job staying ahead!
                       </p>
                     )}
                     {todaysTasks.map((task) => {
@@ -6820,269 +7114,7 @@ const DashboardLayout: FC = () => {
                     })}
                   </div>
                 </section>
-
-                <section className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg shadow-slate-900/5 backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                      Clients ({clients.length})
-                    </h2>
-                    <div className="flex items-center space-x-2">
-                      <button
-                        type="button"
-                        onClick={() => fetchClients(0)}
-                        disabled={isLoadingClients}
-                        className="rounded-full border border-white/60 bg-white/80 px-3 py-2 text-sm font-medium text-slate-600 shadow-lg shadow-slate-900/10 hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:bg-slate-900 disabled:opacity-50"
-                        title="Refresh clients"
-                      >
-                        <svg className={`h-4 w-4 ${isLoadingClients ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowAddClientModal(true)}
-                        className="rounded-full border border-blue-500/60 bg-gradient-to-r from-blue-500 to-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 hover:from-blue-600 hover:to-blue-700 hover:shadow-blue-500/40 transition-all dark:border-blue-400/60 dark:from-blue-600 dark:to-blue-700 dark:hover:from-blue-700 dark:hover:to-blue-800"
-                      >
-                        + New Client
-                      </button>
-                    </div>
-                  </div>
-                  <div className="mt-4 space-y-4">
-                    {isLoadingClients ? (
-                      <div className="flex items-center justify-center py-8">
-                        <div className="flex items-center space-x-2 text-slate-600 dark:text-slate-400">
-                          <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-                          </svg>
-                          <span>Loading clients...</span>
-                        </div>
-                      </div>
-                    ) : clients.length === 0 ? (
-                      <div className="text-center py-8">
-                        <p className="text-slate-500 dark:text-slate-400">No clients found</p>
-                        <button
-                          onClick={() => fetchClients(0)}
-                          className="mt-2 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                        >
-                          Refresh
-                        </button>
-                      </div>
-                    ) : (
-                      clients.map((client) => (
-                      <article
-                        key={client.id}
-                        onClick={() => {
-                          setSelectedClientId(client.id);
-                          setActiveSection("overview");
-                        }}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            setSelectedClientId(client.id);
-                            setActiveSection("overview");
-                          }
-                        }}
-                        className={classNames(
-                          "cursor-pointer rounded-2xl border border-white/60 bg-white/70 p-4 shadow-lg shadow-slate-900/5 backdrop-blur-md transition hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-900/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20 dark:hover:shadow-slate-950/40",
-                          client.id === selectedClientId &&
-                            "border-blue-200 bg-white dark:border-blue-500/40 dark:bg-slate-900"
-                        )}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                              {client.name}
-                            </h3>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">
-                              {client.company}
-                            </p>
-                          </div>
-                          <span className="rounded-full bg-white/80 px-3 py-1 text-sm text-slate-600 shadow-inner shadow-white/60 dark:bg-slate-900/70 dark:text-slate-200 dark:shadow-slate-950/30">
-                            {
-                              tasks.filter(
-                                (task) => task.clientId === client.id && task.status !== "Done"
-                              ).length
-                            }{" "}
-                            open
-                          </span>
-                        </div>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {client.tags?.map((tag) => (
-                            <span
-                              key={tag}
-                              className="rounded-full border border-white/60 bg-white/60 px-3 py-1 text-xs font-medium uppercase tracking-wide text-slate-600 dark:border-slate-800/60 dark:bg-slate-900/50 dark:text-slate-300"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      </article>
-                    )))}
-                  </div>
-                </section>
               </div>
-            {selectedClient && (
-              <section className="space-y-6 rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg shadow-slate-900/5 backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
-                      {selectedClient.name}
-                    </h2>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      {selectedClient.company ?? "No company"} · {selectedClient.status}
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-2 text-sm text-slate-500 dark:text-slate-300">
-                      {(selectedClient.tags ?? []).map((tag) => (
-                        <span
-                          key={tag}
-                          className="rounded-full bg-blue-50 px-3 py-1 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="inline-flex rounded-full border border-white/60 bg-white/80 p-1 shadow-inner shadow-white/60 dark:border-slate-700/60 dark:bg-slate-900/70 dark:shadow-slate-950/30 relative z-20">
-                    {(["overview", "tasks", "credentials", "activity"] as const).map((tab) => (
-                      <button
-                        key={tab}
-                        type="button"
-                        onClick={() => {
-                          console.log('Tab clicked:', tab, 'Current active:', activeSection);
-                          setActiveSection(tab);
-                        }}
-                        className="rounded-full px-4 py-2 text-sm font-medium capitalize transition bg-blue-200 hover:bg-blue-300 text-blue-900"
-                        style={{
-                          backgroundColor: activeSection === tab ? '#3b82f6' : '#dbeafe',
-                          color: activeSection === tab ? 'white' : '#1e3a8a'
-                        }}
-                      >
-                        {tab}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  {activeSection === "overview" && (
-                    <div className="grid gap-3 text-sm text-slate-600 dark:text-slate-300 sm:grid-cols-2">
-                      <div className="rounded-2xl border border-white/60 bg-white/70 p-4 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/60">
-                        <p className="text-xs uppercase tracking-wide text-slate-400">Open tasks</p>
-                        <p className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">
-                          {clientTasks.filter((task) => task.status !== "Done").length}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl border border-white/60 bg-white/70 p-4 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/60">
-                        <p className="text-xs uppercase tracking-wide text-slate-400">
-                          Credentials on file
-                        </p>
-                        <p className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">
-                          {clientCredentials.length}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeSection === "tasks" && (
-                    <div className="space-y-3">
-                      {clientTasks.length === 0 && (
-                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                          No tasks for this client yet.
-                        </p>
-                      )}
-                      {clientTasks.map((task) => (
-                        <div
-                          key={task.id}
-                          className="rounded-2xl border border-white/60 bg-white/70 p-4 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/60"
-                        >
-                          <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div>
-                              <p className="text-base font-semibold text-slate-900 dark:text-slate-100">
-                                {task.title}
-                              </p>
-                              <p className="text-sm text-slate-500 dark:text-slate-400">
-                                {task.description ?? "No description"}
-                              </p>
-                            </div>
-                            <span className="rounded-full bg-white/80 px-3 py-1 text-xs uppercase tracking-wide text-slate-600 dark:bg-slate-900/70 dark:text-slate-300">
-                              {task.status}
-                            </span>
-                          </div>
-                          <div className="mt-3 flex flex-wrap gap-3 text-sm text-slate-500 dark:text-slate-400">
-                            <span className="flex items-center gap-2">
-                              <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-                              {task.priority} priority
-                            </span>
-                            <span>Due {todayLabel(task.dueDate)}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {activeSection === "credentials" && (
-                    <div className="space-y-3">
-                      {clientCredentials.length === 0 && (
-                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                          No credentials stored for this client.
-                        </p>
-                      )}
-                      {clientCredentials.map((credential) => (
-                        <div
-                          key={credential.id}
-                          className="flex flex-col gap-3 rounded-2xl border border-white/60 bg-white/70 p-4 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/60 md:flex-row md:items-center md:justify-between"
-                        >
-                          <div className="flex-1">
-                            <p className="text-base font-semibold text-slate-900 dark:text-slate-100">
-                              {credential.label}
-                            </p>
-                            <div className="mt-1 flex flex-wrap gap-3 text-sm text-slate-500 dark:text-slate-400">
-                              <span className="rounded-full bg-white/80 px-3 py-1 dark:bg-slate-900/70">
-                                {credential.username}
-                              </span>
-                              {credential.url && <span>{credential.url}</span>}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="rounded-full bg-white/80 px-3 py-1 font-mono text-sm tracking-wide text-slate-500 dark:bg-slate-900/70 dark:text-slate-300">
-                              {visiblePasswords.has(credential.id) ? credential.password : '••••••••'}
-                            </span>
-                            <button
-                              onClick={() => togglePasswordVisibility(credential.id)}
-                              className="rounded-lg p-2 hover:bg-white/80 dark:hover:bg-slate-800"
-                              title={visiblePasswords.has(credential.id) ? "Hide password" : "Show password"}
-                            >
-                              {visiblePasswords.has(credential.id) ? (
-                                <EyeSlashIcon className="h-5 w-5 text-slate-500 dark:text-slate-400" />
-                              ) : (
-                                <EyeIcon className="h-5 w-5 text-slate-500 dark:text-slate-400" />
-                              )}
-                            </button>
-                            <button
-                              onClick={() => {
-                                navigator.clipboard.writeText(credential.password);
-                              }}
-                              className="rounded-2xl bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-                            >
-                              Copy
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {activeSection === "activity" && (
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      Activity feed placeholder — connect audit events when backend is available.
-                    </p>
-                  )}
-                </div>
-              </section>
-            )}
             </section>
             )}
           </div>
