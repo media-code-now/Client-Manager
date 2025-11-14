@@ -56,6 +56,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const userId = decoded.id; // Get user ID from JWT
+
     // Connect to database
     const client = new Client({
       connectionString: getDatabaseUrl()
@@ -63,7 +65,7 @@ export async function GET(request: NextRequest) {
     
     await client.connect();
 
-    // Fetch clients
+    // Fetch clients for this user only
     const clientsQuery = `
       SELECT 
         id::text as "id",
@@ -77,10 +79,11 @@ export async function GET(request: NextRequest) {
         updated_at as "updatedAt",
         updated_at as "lastActivityAt"
       FROM clients 
+      WHERE user_id = $1
       ORDER BY updated_at DESC
     `;
 
-    const result = await client.query(clientsQuery);
+    const result = await client.query(clientsQuery, [userId]);
     await client.end();
 
     console.log('Clients query returned:', result.rows.length, 'clients');
@@ -123,9 +126,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify JWT token
+    let decoded: DecodedToken;
     try {
-      const decoded = jwt.verify(token, jwtSecret);
-      console.log('POST: JWT verified for user:', (decoded as any).email);
+      decoded = jwt.verify(token, jwtSecret) as DecodedToken;
+      console.log('POST: JWT verified for user:', decoded.email);
     } catch (error) {
       console.log('POST: JWT verification failed:', error);
       return NextResponse.json(
@@ -133,6 +137,9 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
+
+    const userId = decoded.id; // Get user ID from JWT
+    console.log('POST: User ID from JWT:', userId);
 
     const body = await request.json();
     console.log('POST: Request body:', body);
@@ -147,7 +154,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('POST: Creating client with data:', { name, company, status, email, phone, notes });
+    console.log('POST: Creating client with data:', { name, company, status, email, phone, notes, userId });
 
     const client = new Client({ connectionString: getDatabaseUrl() });
     await client.connect();
@@ -163,6 +170,7 @@ export async function POST(request: NextRequest) {
         email TEXT,
         phone TEXT,
         notes TEXT,
+        user_id INTEGER NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
@@ -170,13 +178,13 @@ export async function POST(request: NextRequest) {
     console.log('POST: Table ensured');
 
     const insertQuery = `
-      INSERT INTO clients (name, company, status, email, phone, notes, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+      INSERT INTO clients (name, company, status, email, phone, notes, user_id, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
       RETURNING id::text as "id", name, company, status, email, phone, notes,
                 created_at as "createdAt", updated_at as "updatedAt",
                 updated_at as "lastActivityAt";
     `;
-    const insertValues = [name, company || null, status, email, phone, notes];
+    const insertValues = [name, company || null, status, email, phone, notes, userId];
     const result = await client.query(insertQuery, insertValues);
     await client.end();
 
@@ -216,9 +224,10 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Verify JWT token
+    let decoded: DecodedToken;
     try {
-      const decoded = jwt.verify(token, jwtSecret);
-      console.log('DELETE: JWT verified for user:', (decoded as any).email);
+      decoded = jwt.verify(token, jwtSecret) as DecodedToken;
+      console.log('DELETE: JWT verified for user:', decoded.email);
     } catch (error) {
       console.log('DELETE: JWT verification failed:', error);
       return NextResponse.json(
@@ -226,6 +235,8 @@ export async function DELETE(request: NextRequest) {
         { status: 401 }
       );
     }
+
+    const userId = decoded.id; // Get user ID from JWT
 
     // Get client ID from URL search params
     const { searchParams } = new URL(request.url);
@@ -245,13 +256,13 @@ export async function DELETE(request: NextRequest) {
     await client.connect();
     console.log('DELETE: Database connected');
 
-    // Delete the client
-    const deleteQuery = 'DELETE FROM clients WHERE id = $1 RETURNING id';
-    const result = await client.query(deleteQuery, [clientId]);
+    // Delete the client (only if it belongs to this user)
+    const deleteQuery = 'DELETE FROM clients WHERE id = $1 AND user_id = $2 RETURNING id';
+    const result = await client.query(deleteQuery, [clientId, userId]);
     await client.end();
 
     if (result.rowCount === 0) {
-      console.log('DELETE: Client not found');
+      console.log('DELETE: Client not found or does not belong to user');
       return NextResponse.json(
         { success: false, error: 'Client not found' },
         { status: 404 }
