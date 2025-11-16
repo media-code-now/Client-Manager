@@ -42,6 +42,26 @@ export function getAccessToken(): string | null {
 }
 
 /**
+ * Get access token with automatic refresh if expired
+ * Use this for API calls to ensure token is always valid
+ */
+export async function getValidAccessToken(): Promise<string | null> {
+  if (typeof window === 'undefined') return null;
+  
+  // Check if token is expired or about to expire
+  if (isAccessTokenExpired()) {
+    console.log('Access token expired or expiring soon, attempting refresh...');
+    const refreshed = await refreshTokens();
+    if (!refreshed) {
+      console.error('Failed to refresh token');
+      return null;
+    }
+  }
+  
+  return getAccessToken();
+}
+
+/**
  * Save access token to localStorage
  */
 export function setAccessToken(token: string): void {
@@ -244,8 +264,7 @@ export async function refreshTokens(): Promise<boolean> {
   if (!refreshToken) return false;
 
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
-    const response = await fetch(`${baseUrl}/auth/refresh`, {
+    const response = await fetch('/api/auth/refresh', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -259,8 +278,10 @@ export async function refreshTokens(): Promise<boolean> {
     }
 
     const data = await response.json();
-    if (data.success && data.tokens && data.user) {
-      saveTokenPair(data.tokens, data.user);
+    if (data.success && data.tokens) {
+      // Save new access token
+      setAccessToken(data.tokens.accessToken);
+      setTokenExpiresAt(data.tokens.expiresIn);
       return true;
     }
 

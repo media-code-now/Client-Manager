@@ -29,6 +29,7 @@ import {
   KeyIcon,
   LanguageIcon,
   MagnifyingGlassIcon,
+  MicrophoneIcon,
   MoonIcon,
   PaintBrushIcon,
   PencilIcon,
@@ -53,6 +54,7 @@ import { getAccessToken, getAuthState } from "../utils/auth";
 import EmailComposer from "./EmailComposer";
 import EmailList from "./EmailList";
 import EmailPerformanceDashboard from "./EmailPerformanceDashboard";
+import TokenDebugger from "./TokenDebugger";
 
 type ClientStatus = "Active" | "On hold" | "Archived";
 type TaskStatus = "Open" | "In progress" | "Done";
@@ -134,6 +136,21 @@ type Notification = {
   actionUrl?: string;
   relatedClientId?: string;
   relatedTaskId?: string;
+};
+
+type Note = {
+  id: string;
+  title: string;
+  content: string;
+  tags?: string[];
+  isPinned: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+  createdFrom?: 'text' | 'voice';
+  audioUrl?: string;
+  transcriptionConfidence?: number;
+  linkedTaskId?: string;
 };
 
 type UserProfile = {
@@ -342,6 +359,18 @@ const DashboardLayout: FC = () => {
   const [profileSaveMessage, setProfileSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [mailsActiveTab, setMailsActiveTab] = useState<'inbox' | 'analytics'>('inbox');
   const [isSyncingEmails, setIsSyncingEmails] = useState(false);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [noteSearchQuery, setNoteSearchQuery] = useState<string>("");
+  const [showAddNoteModal, setShowAddNoteModal] = useState<boolean>(false);
+  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [voiceTranscript, setVoiceTranscript] = useState<string>("");
+  const [showBottomSheet, setShowBottomSheet] = useState<boolean>(false);
+  const [createFollowUpTask, setCreateFollowUpTask] = useState<boolean>(false);
+  const [noteTaskDueDate, setNoteTaskDueDate] = useState<string>("");
+  const [recordingStartTime, setRecordingStartTime] = useState<number>(0);
+  const [transcriptionConfidence, setTranscriptionConfidence] = useState<number>(0);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
 
   // Toggle password visibility
   const togglePasswordVisibility = (credentialId: string) => {
@@ -779,6 +808,7 @@ const DashboardLayout: FC = () => {
     { label: "Clients", icon: UserGroupIcon },
     { label: "Projects", icon: RectangleStackIcon },
     { label: "Tasks", icon: ClipboardDocumentListIcon },
+    { label: "Notes", icon: DocumentTextIcon },
     { label: "Calendar", icon: CalendarIcon },
     { label: "Credentials", icon: KeyIcon },
     { label: "Invoices", icon: CurrencyDollarIcon },
@@ -1471,9 +1501,36 @@ const DashboardLayout: FC = () => {
     try {
       const token = getAccessToken();
       if (!token) {
-        console.error('No token for adding client');
+        console.error('No token found in localStorage');
         alert('Authentication error. Please log in again.');
         return;
+      }
+
+      // Debug: Check token format
+      console.log('Token exists:', !!token);
+      console.log('Token length:', token.length);
+      console.log('Token starts with:', token.substring(0, 20));
+
+      // Debug: Check if token is expired
+      try {
+        const tokenParts = token.split('.');
+        if (tokenParts.length === 3) {
+          const payload = JSON.parse(atob(tokenParts[1]));
+          const expiresAt = payload.exp * 1000; // Convert to milliseconds
+          const now = Date.now();
+          const isExpired = now > expiresAt;
+          console.log('Token expiry:', new Date(expiresAt).toISOString());
+          console.log('Current time:', new Date(now).toISOString());
+          console.log('Token expired:', isExpired);
+          
+          if (isExpired) {
+            alert('Your session has expired. Please log in again.');
+            window.location.href = '/login';
+            return;
+          }
+        }
+      } catch (e) {
+        console.error('Error parsing token:', e);
       }
 
       console.log('Attempting to add client:', newClientData);
@@ -1577,9 +1634,30 @@ const DashboardLayout: FC = () => {
     try {
       const token = getAccessToken();
       if (!token) {
-        console.error('No token for adding task');
+        console.error('No token found in localStorage');
         alert('Authentication error. Please log in again.');
         return;
+      }
+
+      // Debug: Check token validity
+      try {
+        const tokenParts = token.split('.');
+        if (tokenParts.length === 3) {
+          const payload = JSON.parse(atob(tokenParts[1]));
+          const expiresAt = payload.exp * 1000;
+          const now = Date.now();
+          const isExpired = now > expiresAt;
+          console.log('Token expiry:', new Date(expiresAt).toISOString());
+          console.log('Token expired:', isExpired);
+          
+          if (isExpired) {
+            alert('Your session has expired. Please log in again.');
+            window.location.href = '/login';
+            return;
+          }
+        }
+      } catch (e) {
+        console.error('Error parsing token:', e);
       }
 
       console.log('Attempting to add task:', newTaskData);
@@ -3296,6 +3374,673 @@ const DashboardLayout: FC = () => {
             </div>
           )}
         </div>
+      </div>
+    );
+  };
+
+  const renderNotesView = () => {
+    // Filter notes based on search query
+    const filteredNotes = notes.filter(note => {
+      const searchMatch = !noteSearchQuery ||
+        note.title.toLowerCase().includes(noteSearchQuery.toLowerCase()) ||
+        note.content.toLowerCase().includes(noteSearchQuery.toLowerCase()) ||
+        note.tags?.some(tag => tag.toLowerCase().includes(noteSearchQuery.toLowerCase()));
+      return searchMatch;
+    });
+
+    // Sort notes: pinned first, then by updated date
+    const sortedNotes = [...filteredNotes].sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+    });
+
+    // Voice recording functionality with press-and-hold
+    const handlePressStart = () => {
+      // Check mic permissions
+      if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+        alert('Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.');
+        return;
+      }
+
+      setRecordingStartTime(Date.now());
+      setIsRecording(true);
+
+      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+      const recognition = new SpeechRecognition();
+      
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event: any) => {
+        let transcript = '';
+        let confidence = 0;
+        
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+          confidence = Math.max(confidence, event.results[i][0].confidence);
+        }
+        
+        setVoiceTranscript(transcript);
+        setTranscriptionConfidence(Math.round(confidence * 100));
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        
+        if (event.error === 'not-allowed') {
+          alert('Microphone access required. Please enable microphone permissions in your browser settings.');
+        } else if (event.error === 'network') {
+          alert('Network error. Please check your connection and try again.');
+        } else {
+          alert('Speech recognition error. Please try again.');
+        }
+        
+        setIsRecording(false);
+      };
+
+      recognition.onend = () => {
+        console.log('Voice recognition ended');
+      };
+
+      recognition.start();
+      
+      // Store recognition instance for stopping later
+      (window as any).currentRecognition = recognition;
+    };
+
+    const handlePressEnd = () => {
+      const recordingDuration = (Date.now() - recordingStartTime) / 1000;
+      
+      // Check if recording was too short
+      if (recordingDuration < 1) {
+        alert('Recording too short. Please hold longer to record.');
+        setIsRecording(false);
+        setVoiceTranscript("");
+        return;
+      }
+
+      // Stop recognition
+      if ((window as any).currentRecognition) {
+        (window as any).currentRecognition.stop();
+        (window as any).currentRecognition = null;
+      }
+
+      setIsRecording(false);
+
+      // Show bottom sheet with transcribed text
+      if (voiceTranscript.trim()) {
+        setShowBottomSheet(true);
+        setCreateFollowUpTask(false);
+        setNoteTaskDueDate("");
+      } else {
+        alert("Couldn't understand. Please try again.");
+        setVoiceTranscript("");
+      }
+    };
+
+    const stopVoiceRecording = () => {
+      if ((window as any).currentRecognition) {
+        (window as any).currentRecognition.stop();
+        setIsRecording(false);
+      }
+    };
+
+    const handleAddNote = () => {
+      setSelectedNote(null);
+      setVoiceTranscript("");
+      setShowAddNoteModal(true);
+    };
+
+    const handleEditNote = (note: Note) => {
+      setSelectedNote(note);
+      setVoiceTranscript(note.content);
+      setShowAddNoteModal(true);
+    };
+
+    const handleSaveNoteFromBottomSheet = () => {
+      const noteContent = voiceTranscript.trim();
+      
+      if (!noteContent) {
+        alert('Note cannot be empty.');
+        return;
+      }
+
+      if (createFollowUpTask && !noteTaskDueDate) {
+        alert('Please select a due date for the follow-up task.');
+        return;
+      }
+
+      const lines = noteContent.split('\n').filter(line => line.trim());
+      const firstLine = lines[0] || noteContent.substring(0, 100);
+      const remainingLines = lines.slice(1).join('\n');
+
+      // Create the note
+      const noteId = `note-${Date.now()}`;
+      const newNote: Note = {
+        id: noteId,
+        title: firstLine,
+        content: noteContent,
+        tags: [],
+        isPinned: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        createdFrom: 'voice',
+        transcriptionConfidence: transcriptionConfidence,
+        linkedTaskId: undefined,
+      };
+
+      // Create follow-up task if requested
+      if (createFollowUpTask && noteTaskDueDate) {
+        const taskId = `task-${Date.now()}`;
+        
+        const calculateDueDate = (dateOption: string): string => {
+          const now = new Date();
+          switch (dateOption) {
+            case 'tomorrow':
+              now.setDate(now.getDate() + 1);
+              break;
+            case 'in3days':
+              now.setDate(now.getDate() + 3);
+              break;
+            case 'nextweek':
+              now.setDate(now.getDate() + 7);
+              break;
+          }
+          return now.toISOString().split('T')[0];
+        };
+
+        const newTask: Task = {
+          id: taskId,
+          clientId: '', // Empty for now, can be linked later
+          title: firstLine.length > 100 ? firstLine.substring(0, 100) + '...' : firstLine,
+          description: remainingLines || noteContent,
+          dueDate: calculateDueDate(noteTaskDueDate),
+          priority: 'Medium',
+          status: 'Open',
+        };
+
+        setTasks(prev => [...prev, newTask]);
+        newNote.linkedTaskId = taskId;
+        
+        alert('✓ Note & task created successfully!');
+      } else {
+        alert('✓ Note saved successfully!');
+      }
+
+      setNotes(prev => [...prev, newNote]);
+      
+      // Reset state
+      setShowBottomSheet(false);
+      setVoiceTranscript("");
+      setCreateFollowUpTask(false);
+      setNoteTaskDueDate("");
+      setTranscriptionConfidence(0);
+    };
+
+    const handleDeleteNote = (noteId: string) => {
+      if (confirm('Are you sure you want to delete this note?')) {
+        setNotes(prev => prev.filter(n => n.id !== noteId));
+      }
+    };
+
+    const handleTogglePin = (noteId: string) => {
+      setNotes(prev => prev.map(n => 
+        n.id === noteId ? { ...n, isPinned: !n.isPinned } : n
+      ));
+    };
+
+    const formatDate = (dateString: string) => {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+
+      if (diffMins < 1) return 'Just now';
+      if (diffMins < 60) return `${diffMins} min${diffMins !== 1 ? 's' : ''} ago`;
+      if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+      if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+      return date.toLocaleDateString();
+    };
+
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold text-slate-900 dark:text-slate-100">
+              Notes
+            </h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Create and manage your notes with text or voice input
+            </p>
+          </div>
+          <button 
+            onClick={handleAddNote}
+            className="rounded-2xl bg-blue-600 px-6 py-3 text-sm font-medium text-white shadow-lg shadow-blue-600/25 transition-all hover:bg-blue-700 hover:shadow-blue-600/40 dark:bg-blue-500 dark:hover:bg-blue-600"
+          >
+            + Add New Note
+          </button>
+        </div>
+
+        {/* Search Bar */}
+        <div className="flex flex-col gap-4 md:flex-row md:items-center">
+          <div className="flex-1">
+            <input
+              type="search"
+              value={noteSearchQuery}
+              onChange={(e) => setNoteSearchQuery(e.target.value)}
+              placeholder="Search notes by title, content, or tags..."
+              className="w-full rounded-2xl border border-white/60 bg-white/80 px-4 py-3 text-sm shadow-inner shadow-white/40 backdrop-blur-md placeholder:text-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200/60 dark:border-slate-700/60 dark:bg-slate-900/80 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-400 dark:focus:ring-blue-400/30"
+            />
+          </div>
+        </div>
+
+        {/* Statistics */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg shadow-slate-900/5 backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20">
+            <div className="flex items-center gap-3">
+              <div className="rounded-2xl bg-blue-100 p-3 dark:bg-blue-500/20">
+                <DocumentTextIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+                  {notes.length}
+                </p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Total Notes</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg shadow-slate-900/5 backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20">
+            <div className="flex items-center gap-3">
+              <div className="rounded-2xl bg-yellow-100 p-3 dark:bg-yellow-500/20">
+                <CheckCircleIcon className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+                  {notes.filter(n => n.isPinned).length}
+                </p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Pinned Notes</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg shadow-slate-900/5 backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20">
+            <div className="flex items-center gap-3">
+              <div className="rounded-2xl bg-purple-100 p-3 dark:bg-purple-500/20">
+                <MagnifyingGlassIcon className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+                  {sortedNotes.length}
+                </p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Search Results</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Notes Grid */}
+        <div className="space-y-4">
+          {sortedNotes.length === 0 ? (
+            <div className="rounded-3xl border border-white/60 bg-white/70 p-12 text-center shadow-lg shadow-slate-900/5 backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20">
+              <DocumentTextIcon className="mx-auto h-12 w-12 text-slate-400 dark:text-slate-500" />
+              <h3 className="mt-4 text-lg font-medium text-slate-900 dark:text-slate-100">
+                No notes found
+              </h3>
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                {noteSearchQuery
+                  ? "Try adjusting your search query"
+                  : "Create your first note to get started"}
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              {sortedNotes.map((note) => (
+                <div
+                  key={note.id}
+                  className={classNames(
+                    "rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg shadow-slate-900/5 backdrop-blur-md transition-all hover:shadow-xl dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20",
+                    note.isPinned && "border-yellow-300 dark:border-yellow-600/50"
+                  )}
+                >
+                  <div className="flex items-start justify-between">
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex-1">
+                      {note.title}
+                    </h3>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleTogglePin(note.id)}
+                        className={classNames(
+                          "rounded-xl p-2 transition-colors",
+                          note.isPinned
+                            ? "text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-500/20"
+                            : "text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                        )}
+                        title={note.isPinned ? "Unpin note" : "Pin note"}
+                      >
+                        <svg className="h-4 w-4" fill={note.isPinned ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  <p className="mt-3 text-sm text-slate-600 dark:text-slate-300 line-clamp-3">
+                    {note.content}
+                  </p>
+
+                  {note.tags && note.tags.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {note.tags.map((tag, index) => (
+                        <span
+                          key={index}
+                          className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-600 dark:bg-blue-500/10 dark:text-blue-300"
+                        >
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-4 dark:border-slate-700">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      {formatDate(note.updatedAt)}
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleEditNote(note)}
+                        className="rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                        title="Edit note"
+                      >
+                        <PencilIcon className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteNote(note.id)}
+                        className="rounded-xl p-2 text-red-500 transition-colors hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-500/20 dark:hover:text-red-300"
+                        title="Delete note"
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Add/Edit Note Modal */}
+        {showAddNoteModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+            <div className="mx-4 w-full max-w-2xl rounded-3xl border border-white/60 bg-white/90 p-6 shadow-2xl backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/90">
+              <h2 className="mb-4 text-xl font-semibold text-slate-900 dark:text-slate-100">
+                {selectedNote ? 'Edit Note' : 'Add New Note'}
+              </h2>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  const tagsInput = formData.get('tags') as string;
+                  
+                  const noteData: Note = {
+                    id: selectedNote?.id || `note-${Date.now()}`,
+                    title: formData.get('title') as string,
+                    content: formData.get('content') as string,
+                    tags: tagsInput ? tagsInput.split(',').map(tag => tag.trim()).filter(Boolean) : [],
+                    isPinned: selectedNote?.isPinned || false,
+                    createdAt: selectedNote?.createdAt || new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    createdFrom: 'text',
+                  };
+
+                  if (selectedNote) {
+                    setNotes(prev => prev.map(n => n.id === selectedNote.id ? noteData : n));
+                  } else {
+                    setNotes(prev => [...prev, noteData]);
+                  }
+
+                  setShowAddNoteModal(false);
+                  setSelectedNote(null);
+                }}
+                className="space-y-4"
+              >
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    Title *
+                  </label>
+                  <input
+                    name="title"
+                    type="text"
+                    required
+                    defaultValue={selectedNote?.title || ''}
+                    className="w-full rounded-2xl border border-white/60 bg-white/80 px-4 py-3 text-sm shadow-inner shadow-white/40 backdrop-blur-md placeholder:text-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200/60 dark:border-slate-700/60 dark:bg-slate-900/80 dark:text-slate-100 dark:placeholder:text-slate-500"
+                    placeholder="Enter note title"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    Content *
+                  </label>
+                  <textarea
+                    name="content"
+                    rows={8}
+                    required
+                    defaultValue={selectedNote?.content || ''}
+                    className="w-full rounded-2xl border border-white/60 bg-white/80 px-4 py-3 text-sm shadow-inner shadow-white/40 backdrop-blur-md placeholder:text-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200/60 dark:border-slate-700/60 dark:bg-slate-900/80 dark:text-slate-100 dark:placeholder:text-slate-500"
+                    placeholder="Enter note content..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    Tags (comma-separated)
+                  </label>
+                  <input
+                    name="tags"
+                    type="text"
+                    defaultValue={selectedNote?.tags?.join(', ') || ''}
+                    className="w-full rounded-2xl border border-white/60 bg-white/80 px-4 py-3 text-sm shadow-inner shadow-white/40 backdrop-blur-md placeholder:text-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200/60 dark:border-slate-700/60 dark:bg-slate-900/80 dark:text-slate-100 dark:placeholder:text-slate-500"
+                    placeholder="work, personal, ideas"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddNoteModal(false);
+                      setSelectedNote(null);
+                    }}
+                    className="flex-1 rounded-2xl border border-white/60 bg-white/80 px-4 py-3 text-sm font-medium text-slate-600 shadow-lg shadow-slate-900/10 hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:bg-slate-900"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-medium text-white shadow-lg shadow-blue-600/25 transition-all hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                  >
+                    {selectedNote ? 'Update Note' : 'Add Note'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Floating Action Button - Press & Hold to Record */}
+        <button
+          onMouseDown={handlePressStart}
+          onMouseUp={handlePressEnd}
+          onMouseLeave={() => {
+            if (isRecording) handlePressEnd();
+          }}
+          onTouchStart={handlePressStart}
+          onTouchEnd={handlePressEnd}
+          className={classNames(
+            "fixed bottom-8 right-8 z-40 flex h-16 w-16 items-center justify-center rounded-full shadow-2xl transition-all",
+            isRecording
+              ? "bg-red-600 animate-pulse scale-110 shadow-red-600/50"
+              : "bg-blue-600 hover:scale-105 shadow-blue-600/50"
+          )}
+          title={isRecording ? "Release to stop" : "Press & hold to record"}
+        >
+          <MicrophoneIcon className="h-8 w-8 text-white" />
+          {isRecording && (
+            <span className="absolute -top-12 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-medium text-white shadow-xl">
+              Recording... 🎤
+            </span>
+          )}
+        </button>
+
+        {/* Bottom Sheet - Voice Note Editor */}
+        {showBottomSheet && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm">
+            <div className="w-full max-w-2xl rounded-t-3xl border-t border-white/60 bg-white/95 shadow-2xl backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/95 animate-slide-up">
+              {/* Handle bar for drag indication */}
+              <div className="flex justify-center pt-3 pb-2">
+                <div className="h-1.5 w-12 rounded-full bg-slate-300 dark:bg-slate-600"></div>
+              </div>
+
+              <div className="p-6 space-y-4">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    📝 Voice Note
+                    {transcriptionConfidence > 0 && (
+                      <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
+                        ({transcriptionConfidence}% confidence)
+                      </span>
+                    )}
+                  </h2>
+                  <button
+                    onClick={() => {
+                      if (confirm('Discard this note?')) {
+                        setShowBottomSheet(false);
+                        setVoiceTranscript("");
+                        setCreateFollowUpTask(false);
+                        setNoteTaskDueDate("");
+                      }
+                    }}
+                    className="rounded-xl p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Editable Text Area */}
+                <div>
+                  <textarea
+                    value={voiceTranscript}
+                    onChange={(e) => setVoiceTranscript(e.target.value)}
+                    rows={6}
+                    autoFocus
+                    className="w-full rounded-2xl border border-white/60 bg-white/80 px-4 py-3 text-sm shadow-inner shadow-white/40 backdrop-blur-md placeholder:text-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200/60 dark:border-slate-700/60 dark:bg-slate-900/80 dark:text-slate-100 dark:placeholder:text-slate-500"
+                    placeholder="Edit your voice note here..."
+                  />
+                  <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                    {voiceTranscript.length}/2000 characters
+                  </p>
+                </div>
+
+                {/* Create Follow-up Task Toggle */}
+                <div className="space-y-3">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={createFollowUpTask}
+                      onChange={(e) => setCreateFollowUpTask(e.target.checked)}
+                      className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800"
+                    />
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Create follow-up task from this note
+                    </span>
+                  </label>
+
+                  {/* Due Date Chips - Only show when toggle is ON */}
+                  {createFollowUpTask && (
+                    <div className="space-y-2 animate-fade-in">
+                      <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                        When is this due?
+                      </p>
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setNoteTaskDueDate('tomorrow')}
+                          className={classNames(
+                            "flex-1 rounded-2xl border-2 px-4 py-3 text-sm font-medium transition-all",
+                            noteTaskDueDate === 'tomorrow'
+                              ? "border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-400 dark:bg-blue-500/20 dark:text-blue-300"
+                              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                          )}
+                        >
+                          Tomorrow
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNoteTaskDueDate('in3days')}
+                          className={classNames(
+                            "flex-1 rounded-2xl border-2 px-4 py-3 text-sm font-medium transition-all",
+                            noteTaskDueDate === 'in3days'
+                              ? "border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-400 dark:bg-blue-500/20 dark:text-blue-300"
+                              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                          )}
+                        >
+                          In 3 days
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNoteTaskDueDate('nextweek')}
+                          className={classNames(
+                            "flex-1 rounded-2xl border-2 px-4 py-3 text-sm font-medium transition-all",
+                            noteTaskDueDate === 'nextweek'
+                              ? "border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-400 dark:bg-blue-500/20 dark:text-blue-300"
+                              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                          )}
+                        >
+                          Next week
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+                  <button
+                    onClick={() => {
+                      if (confirm('Discard this note?')) {
+                        setShowBottomSheet(false);
+                        setVoiceTranscript("");
+                        setCreateFollowUpTask(false);
+                        setNoteTaskDueDate("");
+                      }
+                    }}
+                    className="flex-1 rounded-2xl border border-white/60 bg-white/80 px-4 py-3 text-sm font-medium text-slate-600 shadow-lg shadow-slate-900/10 hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:bg-slate-900"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveNoteFromBottomSheet}
+                    disabled={!voiceTranscript.trim() || (createFollowUpTask && !noteTaskDueDate)}
+                    className={classNames(
+                      "flex-1 rounded-2xl px-4 py-3 text-sm font-medium text-white shadow-lg transition-all",
+                      !voiceTranscript.trim() || (createFollowUpTask && !noteTaskDueDate)
+                        ? "bg-slate-400 cursor-not-allowed"
+                        : "bg-blue-600 shadow-blue-600/25 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                    )}
+                  >
+                    {createFollowUpTask ? 'Save & Create Task' : 'Save Note'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -6834,6 +7579,8 @@ const DashboardLayout: FC = () => {
               renderTasksView()
             ) : activeNavItem === 'Calendar' ? (
               renderCalendarView()
+            ) : activeNavItem === 'Notes' ? (
+              renderNotesView()
             ) : activeNavItem === 'Credentials' ? (
               renderCredentialsView()
             ) : activeNavItem === 'Invoices' ? (
@@ -7263,6 +8010,9 @@ const DashboardLayout: FC = () => {
         prefilledSubject={emailComposerModal.prefilledSubject}
         contactId={emailComposerModal.contactId}
       />
+      
+      {/* Token Debugger - Remove in production */}
+      <TokenDebugger />
     </div>
   );
 
