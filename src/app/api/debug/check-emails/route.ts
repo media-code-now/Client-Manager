@@ -5,7 +5,18 @@ import jwt from 'jsonwebtoken';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const sql = neon(process.env.DATABASE_URL!);
+let sql: any = null;
+
+function getSql() {
+  if (!sql) {
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) {
+      throw new Error('DATABASE_URL environment variable is not set');
+    }
+    sql = neon(dbUrl);
+  }
+  return sql;
+}
 
 function verifyToken(request: NextRequest) {
   const authHeader = request.headers.get('Authorization');
@@ -14,7 +25,12 @@ function verifyToken(request: NextRequest) {
   }
 
   const token = authHeader.substring(7);
-  const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId?: number; id?: number };
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) {
+    throw new Error('JWT_SECRET is not configured');
+  }
+  
+  const decoded = jwt.verify(token, jwtSecret) as { userId?: number; id?: number };
   const userId = decoded.userId || decoded.id;
   if (!userId) {
     throw new Error('JWT token does not contain user ID');
@@ -29,6 +45,7 @@ function verifyToken(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const userId = verifyToken(request);
+    const sql = getSql();
 
     // Check integrations
     const integrations = await sql`

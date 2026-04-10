@@ -6,8 +6,18 @@ import jwt from 'jsonwebtoken';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+let sql: any = null;
 
-const sql = neon(process.env.DATABASE_URL!);
+function getSql() {
+  if (!sql) {
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) {
+      throw new Error('DATABASE_URL environment variable is not set');
+    }
+    sql = neon(dbUrl);
+  }
+  return sql;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,7 +28,12 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
+    
+    const decoded = jwt.verify(token, jwtSecret) as any;
     const userId = decoded.userId;
 
     // Get query parameters
@@ -27,6 +42,7 @@ export async function GET(request: NextRequest) {
     const triggerType = searchParams.get('trigger_type');
 
     // Fetch workflows with nested data
+    const sql = getSql();
     let workflows;
     
     if (triggerType) {

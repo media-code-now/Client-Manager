@@ -7,8 +7,18 @@ import WorkflowEngine from '@/lib/workflow-engine';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+let sql: any = null;
 
-const sql = neon(process.env.DATABASE_URL!);
+function getSql() {
+  if (!sql) {
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) {
+      throw new Error('DATABASE_URL environment variable is not set');
+    }
+    sql = neon(dbUrl);
+  }
+  return sql;
+}
 
 export async function POST(
   request: NextRequest,

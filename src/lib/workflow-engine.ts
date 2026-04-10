@@ -1,7 +1,18 @@
 import { neon } from '@neondatabase/serverless';
 import { EmailService } from './email-service';
 
-const sql = neon(process.env.DATABASE_URL!);
+let sql: any = null;
+
+function getSql() {
+  if (!sql) {
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) {
+      throw new Error('DATABASE_URL environment variable is not set');
+    }
+    sql = neon(dbUrl);
+  }
+  return sql;
+}
 
 interface WorkflowTrigger {
   id: number;
@@ -43,6 +54,8 @@ export class WorkflowEngine {
    */
   async processEmailReceived(emailId: number): Promise<void> {
     try {
+      const sql = getSql();
+      
       // Get email details
       const emails = await sql`
         SELECT * FROM emails WHERE id = ${emailId}

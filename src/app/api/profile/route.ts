@@ -2,11 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
 import jwt from 'jsonwebtoken';
 
-const sql = neon(process.env.DATABASE_URL!);
-
 // Force dynamic rendering (don't prerender at build time)
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+
+let sql: any = null;
+
+function getSql() {
+  if (!sql) {
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) {
+      throw new Error('DATABASE_URL environment variable is not set');
+    }
+    sql = neon(dbUrl);
+  }
+  return sql;
+}
 
 interface DecodedToken {
   id: number;
@@ -42,6 +53,7 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = decoded.userId || decoded.id;
+    const sql = getSql();
 
     const result = await sql`
       SELECT * FROM user_profiles WHERE id = ${userId}

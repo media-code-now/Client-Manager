@@ -8,8 +8,19 @@ import { encryptEmailCredentials, EmailCredentials, maskEmailCredentials } from 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+// Safe initialization with error handling
+let sql: any = null;
 
-const sql = neon(process.env.DATABASE_URL!);
+function getSql() {
+  if (!sql) {
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) {
+      throw new Error('DATABASE_URL environment variable is not set');
+    }
+    sql = neon(dbUrl);
+  }
+  return sql;
+}
 
 /**
  * Verify JWT token and get user ID
@@ -40,6 +51,7 @@ function verifyToken(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const userId = verifyToken(request);
+    const sql = getSql();
 
     const integrations = await sql`
       SELECT 

@@ -4,7 +4,18 @@ import { neon } from '@neondatabase/serverless';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const sql = neon(process.env.DATABASE_URL!);
+let sql: any = null;
+
+function getSql() {
+  if (!sql) {
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) {
+      throw new Error('DATABASE_URL environment variable is not set');
+    }
+    sql = neon(dbUrl);
+  }
+  return sql;
+}
 
 /**
  * POST /api/setup/fix-database-schema
@@ -12,6 +23,8 @@ const sql = neon(process.env.DATABASE_URL!);
  */
 export async function GET() {
   try {
+    const sql = getSql();
+    
     console.log('Starting comprehensive database schema fix...');
     
     // 1. Fix integrations.user_id type (VARCHAR to INTEGER)

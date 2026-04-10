@@ -7,8 +7,18 @@ import { EmailSyncService } from '@/lib/email-sync-service';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+let sql: any = null;
 
-const sql = neon(process.env.DATABASE_URL!);
+function getSql() {
+  if (!sql) {
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) {
+      throw new Error('DATABASE_URL environment variable is not set');
+    }
+    sql = neon(dbUrl);
+  }
+  return sql;
+}
 
 /**
  * Verify JWT token and get user ID
@@ -20,7 +30,12 @@ function verifyToken(request: NextRequest) {
   }
 
   const token = authHeader.substring(7);
-  const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId?: number; id?: number };
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) {
+    throw new Error('JWT_SECRET is not configured');
+  }
+  
+  const decoded = jwt.verify(token, jwtSecret) as { userId?: number; id?: number };
   
   // Try both userId and id fields
   const userId = decoded.userId || decoded.id;
@@ -39,6 +54,8 @@ function verifyToken(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const userId = verifyToken(request);
+    const sql = getSql();
+    
     console.log('Fetching emails for userId:', userId);
     
     const { searchParams } = new URL(request.url);
