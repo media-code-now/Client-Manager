@@ -55,6 +55,9 @@ import EmailComposer from "./EmailComposer";
 import EmailList from "./EmailList";
 import EmailPerformanceDashboard from "./EmailPerformanceDashboard";
 import TokenDebugger from "./TokenDebugger";
+import HeaderWithNotifications from "./HeaderWithNotifications";
+import KanbanBoard from "./KanbanBoard";
+import ClientKanbanBoard from "./ClientKanbanBoard";
 
 type ClientStatus = "Active" | "On hold" | "Archived";
 type TaskStatus = "Open" | "In progress" | "Done";
@@ -316,6 +319,9 @@ const DashboardLayout: FC = () => {
   const [credentialSearchQuery, setCredentialSearchQuery] = useState<string>("");
   const [selectedDueDate, setSelectedDueDate] = useState<string>("");
   const [showCalendar, setShowCalendar] = useState<boolean>(false);
+  const [showKanbanView, setShowKanbanView] = useState<boolean>(false);
+  const [kanbanClientFilter, setKanbanClientFilter] = useState<string | null>(null);
+  const [showClientKanbanBoard, setShowClientKanbanBoard] = useState<boolean>(false);
   const [editSelectedDueDate, setEditSelectedDueDate] = useState<string>("");
   const [showEditCalendar, setShowEditCalendar] = useState<boolean>(false);
   const [calendarCurrentMonth, setCalendarCurrentMonth] = useState<Date>(new Date());
@@ -1019,6 +1025,39 @@ const DashboardLayout: FC = () => {
   const renderClientDetail = () => {
     if (!selectedClient) return null;
 
+    // Show Client Kanban Board if toggled
+    if (showClientKanbanBoard) {
+      return (
+        <ClientKanbanBoard
+          clientId={selectedClient.id}
+          clientName={selectedClient.name}
+          tasks={tasks}
+          onTaskUpdate={(taskId, updates) => {
+            const updatedTasks = tasks.map(t =>
+              t.id === taskId ? { ...t, ...updates } : t
+            );
+            setTasks(updatedTasks);
+          }}
+          onTaskDelete={(taskId) => {
+            setTasks(tasks.filter(t => t.id !== taskId));
+          }}
+          onTaskCreate={(newTask) => {
+            const task: Task = {
+              id: String(Math.random()),
+              title: newTask.title || '',
+              status: (newTask.status as TaskStatus) || 'Open',
+              priority: (newTask.priority as TaskPriority) || 'Medium',
+              clientId: selectedClient.id,
+              dueDate: newTask.dueDate,
+              description: newTask.description,
+            };
+            setTasks([...tasks, task]);
+          }}
+          onBack={() => setShowClientKanbanBoard(false)}
+        />
+      );
+    }
+
     const clientTasks = tasks.filter(task => task.clientId === selectedClient.id);
     const clientCredentials = credentials.filter(cred => cred.clientId === selectedClient.id);
 
@@ -1091,17 +1130,25 @@ const DashboardLayout: FC = () => {
             <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
               Tasks ({clientTasks.length})
             </h3>
-            <button 
-              onClick={() => {
-                setTaskCreationContext("client");
-                setSelectedDueDate("");
-                setShowCalendar(false);
-                setShowAddTaskModal(true);
-              }}
-              className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-blue-600/25 transition-all hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-            >
-              + Add Task
-            </button>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => {
+                  setTaskCreationContext("client");
+                  setSelectedDueDate("");
+                  setShowCalendar(false);
+                  setShowAddTaskModal(true);
+                }}
+                className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-blue-600/25 transition-all hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+              >
+                + Add Task
+              </button>
+              <button
+                onClick={() => setShowClientKanbanBoard(true)}
+                className="rounded-2xl border border-white/60 bg-white/80 px-4 py-2 text-sm font-medium text-slate-700 shadow-lg shadow-slate-900/10 transition-all hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:bg-slate-900"
+              >
+                📊 Kanban Board
+              </button>
+            </div>
           </div>
           <div className="space-y-3">
             {clientTasks.length > 0 ? (
@@ -2382,6 +2429,9 @@ const DashboardLayout: FC = () => {
     const filteredTasks = tasks.filter(task => {
       const client = clients.find(c => c.id === task.clientId);
       
+      // Client filter (for Kanban view from client detail)
+      const clientMatch = !kanbanClientFilter || task.clientId === kanbanClientFilter;
+      
       // Search filter
       const searchMatch = !taskSearchQuery || 
         task.title.toLowerCase().includes(taskSearchQuery.toLowerCase()) ||
@@ -2394,7 +2444,7 @@ const DashboardLayout: FC = () => {
       // Priority filter
       const priorityMatch = taskPriorityFilter === "All Priority" || task.priority === taskPriorityFilter;
       
-      return searchMatch && statusMatch && priorityMatch;
+      return clientMatch && searchMatch && statusMatch && priorityMatch;
     });
 
     // Sort filtered tasks by due date (upcoming first, then no due date, then overdue)
@@ -2465,6 +2515,73 @@ const DashboardLayout: FC = () => {
       return date.toLocaleDateString();
     };
 
+    // Show Kanban Board if toggled
+    if (showKanbanView) {
+      const clientName = kanbanClientFilter 
+        ? clients.find(c => c.id === kanbanClientFilter)?.name 
+        : null;
+
+      return (
+        <div className="space-y-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className="text-3xl font-semibold text-slate-900 dark:text-slate-100">
+                Kanban Board
+                {clientName && (
+                  <span className="ml-2 text-lg font-normal text-slate-500 dark:text-slate-400">
+                    • {clientName}
+                  </span>
+                )}
+              </h1>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Organize your tasks with drag and drop
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setShowKanbanView(false);
+                setKanbanClientFilter(null);
+              }}
+              className="rounded-2xl bg-slate-600 px-6 py-3 text-sm font-medium text-white shadow-lg shadow-slate-600/25 transition-all hover:bg-slate-700 hover:shadow-slate-600/40 dark:bg-slate-500 dark:hover:bg-slate-600"
+            >
+              ← Back to List
+            </button>
+          </div>
+
+          <KanbanBoard
+            tasks={filteredTasks}
+            clients={clients}
+            onTaskUpdate={(taskId, updates) => {
+              const updatedTasks = tasks.map(t =>
+                t.id === taskId ? { ...t, ...updates } : t
+              );
+              setTasks(updatedTasks);
+            }}
+            onTaskDelete={(taskId) => {
+              setTasks(tasks.filter(t => t.id !== taskId));
+            }}
+            onTaskCreate={(newTask) => {
+              const task: Task = {
+                id: String(Math.random()),
+                title: newTask.title || '',
+                status: (newTask.status as TaskStatus) || 'Open',
+                priority: (newTask.priority as TaskPriority) || 'Medium',
+                clientId: newTask.clientId || '',
+                dueDate: newTask.dueDate,
+                description: newTask.description,
+              };
+              setTasks([...tasks, task]);
+            }}
+            onClientSelect={(clientId) => {
+              setSelectedClientId(clientId);
+              setClientView('detail');
+              setShowKanbanView(false);
+            }}
+          />
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -2478,8 +2595,15 @@ const DashboardLayout: FC = () => {
           </div>
           <div className="flex gap-2">
             <button 
+              onClick={() => setShowKanbanView(true)}
+              className="rounded-2xl border border-white/60 bg-white/80 px-6 py-3 text-sm font-medium text-slate-700 shadow-lg shadow-slate-900/10 transition-all hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:bg-slate-900"
+            >
+              📊 Kanban Board
+            </button>
+            <button 
               onClick={() => {
                 setTaskCreationContext("tasks");
+
                 setSelectedDueDate("");
                 setShowCalendar(false);
                 setShowAddTaskModal(true);
@@ -2728,85 +2852,87 @@ const DashboardLayout: FC = () => {
     };
     
     return (
-      <div className="absolute top-full left-0 right-0 mt-2 rounded-2xl border border-white/60 bg-white/95 p-4 shadow-2xl backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/95 z-50">
-        <div className="flex items-center justify-between mb-4">
-          <button
-            type="button"
-            onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
-            className="rounded-xl p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-          >
-            ←
-          </button>
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-            {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-          </h3>
-          <button
-            type="button"
-            onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
-            className="rounded-xl p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-          >
-            →
-          </button>
-        </div>
-        
-        <div className="grid grid-cols-7 gap-1 mb-2">
-          {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
-            <div key={day} className="p-2 text-center text-sm font-medium text-slate-500 dark:text-slate-400">
-              {day}
-            </div>
-          ))}
-        </div>
-        
-        <div className="grid grid-cols-7 gap-1">
-          {days.map((date, index) => (
+      <div className="fixed inset-0 flex items-center justify-center z-50 p-4" onClick={() => setShowCalendar(false)}>
+        <div className="w-full max-w-sm rounded-2xl border border-white/60 bg-white/95 p-4 shadow-2xl backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/95 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between mb-4">
             <button
-              key={index}
+              type="button"
+              onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
+              className="rounded-xl p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+            >
+              ←
+            </button>
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+              {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+            </h3>
+            <button
+              type="button"
+              onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
+              className="rounded-xl p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+            >
+              →
+            </button>
+          </div>
+        
+          <div className="grid grid-cols-7 gap-1 mb-2">
+            {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
+              <div key={day} className="p-2 text-center text-sm font-medium text-slate-500 dark:text-slate-400">
+                {day}
+              </div>
+            ))}
+          </div>
+          
+          <div className="grid grid-cols-7 gap-1">
+            {days.map((date, index) => (
+              <button
+                key={index}
+                type="button"
+                onClick={() => {
+                  const dateString = date.toISOString().split('T')[0];
+                  setSelectedDueDate(dateString);
+                  onDateSelect(dateString);
+                  setShowCalendar(false);
+                }}
+                className={`p-2 text-sm rounded-xl transition-all ${
+                  isSelected(date)
+                    ? 'bg-blue-600 text-white'
+                    : isToday(date)
+                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300'
+                    : isCurrentMonth(date)
+                    ? 'text-slate-900 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800'
+                    : 'text-slate-400 hover:bg-slate-50 dark:text-slate-500 dark:hover:bg-slate-800/50'
+                }`}
+              >
+                {date.getDate()}
+              </button>
+            ))}
+          </div>
+          
+          <div className="flex gap-2 mt-4">
+            <button
               type="button"
               onClick={() => {
-                const dateString = date.toISOString().split('T')[0];
-                setSelectedDueDate(dateString);
-                onDateSelect(dateString);
+                setSelectedDueDate('');
+                onDateSelect('');
                 setShowCalendar(false);
               }}
-              className={`p-2 text-sm rounded-xl transition-all ${
-                isSelected(date)
-                  ? 'bg-blue-600 text-white'
-                  : isToday(date)
-                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300'
-                  : isCurrentMonth(date)
-                  ? 'text-slate-900 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800'
-                  : 'text-slate-400 hover:bg-slate-50 dark:text-slate-500 dark:hover:bg-slate-800/50'
-              }`}
+              className="flex-1 rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
             >
-              {date.getDate()}
+              Clear
             </button>
-          ))}
-        </div>
-        
-        <div className="flex gap-2 mt-4">
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedDueDate('');
-              onDateSelect('');
-              setShowCalendar(false);
-            }}
-            className="flex-1 rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-          >
-            Clear
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              const todayString = today.toISOString().split('T')[0];
-              setSelectedDueDate(todayString);
-              onDateSelect(todayString);
-              setShowCalendar(false);
-            }}
-            className="flex-1 rounded-xl bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700"
-          >
-            Today
-          </button>
+            <button
+              type="button"
+              onClick={() => {
+                const todayString = today.toISOString().split('T')[0];
+                setSelectedDueDate(todayString);
+                onDateSelect(todayString);
+                setShowCalendar(false);
+              }}
+              className="flex-1 rounded-xl bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700"
+            >
+              Today
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -2957,19 +3083,13 @@ const DashboardLayout: FC = () => {
                 >
                   📅
                 </button>
-                {showCalendar && (
-                  <div className="fixed inset-0 z-40" onClick={() => setShowCalendar(false)}>
-                    <div onClick={(e) => e.stopPropagation()}>
-                      {renderCalendarPicker((date) => {
-                        // Update the hidden input for form submission
-                        const hiddenInput = document.querySelector('input[name="dueDate"][type="hidden"]') as HTMLInputElement;
-                        if (hiddenInput) {
-                          hiddenInput.value = date;
-                        }
-                      }, selectedDueDate, false)}
-                    </div>
-                  </div>
-                )}
+                {showCalendar && renderCalendarPicker((date) => {
+                  // Update the hidden input for form submission
+                  const hiddenInput = document.querySelector('input[name="dueDate"][type="hidden"]') as HTMLInputElement;
+                  if (hiddenInput) {
+                    hiddenInput.value = date;
+                  }
+                }, selectedDueDate, false)}
               </div>
               <input
                 name="dueDate"
@@ -7535,40 +7655,7 @@ const DashboardLayout: FC = () => {
           )}
 
           {/* Desktop Header - Hidden on mobile */}
-          <header className="sticky top-0 z-20 border-b border-white/60 bg-white/70 px-4 py-4 backdrop-blur-md shadow-lg shadow-slate-900/5 dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20 hidden md:block md:px-8">
-            <div className="flex items-center gap-4 md:gap-6">
-              <div className="flex flex-1 items-center rounded-full border border-white/60 bg-white/80 px-4 py-2 shadow-inner shadow-white/40 transition focus-within:border-white focus-within:ring-2 focus-within:ring-blue-200/60 focus-within:ring-offset-2 focus-within:ring-offset-white/70 dark:border-slate-700/60 dark:bg-slate-900/70 dark:shadow-slate-950/30 dark:focus-within:ring-offset-slate-900">
-                <MagnifyingGlassIcon className="mr-3 h-5 w-5 text-slate-400 dark:text-slate-500" />
-                <input
-                  type="search"
-                  placeholder="Quick search"
-                  className="w-full bg-transparent text-base text-slate-700 placeholder:text-slate-400 focus:outline-none dark:text-slate-200 dark:placeholder:text-slate-500"
-                />
-              </div>
-              
-              <ThemeToggle className="hidden md:flex" />
-              <button
-                type="button"
-                className={classNames(
-                  "hidden h-12 w-12 items-center justify-center rounded-full border border-white/60 bg-white/80 shadow-lg shadow-slate-900/10 hover:bg-white md:flex dark:border-slate-700/60 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:bg-slate-900",
-                  iosMotion.hoverButton,
-                  iosMotion.focusRing
-                )}
-              >
-                <ShieldCheckIcon className="h-6 w-6 text-slate-600 dark:text-slate-300" />
-              </button>
-              <button
-                type="button"
-                className={classNames(
-                  "flex h-12 w-12 items-center justify-center rounded-full border border-white/60 bg-white/80 shadow-lg shadow-slate-900/10 dark:border-slate-700/60 dark:bg-slate-900/70 dark:text-slate-200",
-                  iosMotion.hoverButton,
-                  iosMotion.focusRing
-                )}
-              >
-                <UserCircleIcon className="h-8 w-8 text-slate-600 dark:text-slate-300" />
-              </button>
-            </div>
-          </header>
+          <HeaderWithNotifications />
 
           <div className="flex-1 overflow-y-auto px-4 pb-12 pt-6 md:px-8">
             {activeNavItem === 'Clients' ? (
