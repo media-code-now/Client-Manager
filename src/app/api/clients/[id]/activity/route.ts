@@ -105,7 +105,7 @@ export async function GET(
     query += ` ORDER BY timestamp DESC LIMIT $${qParams.length + 1} OFFSET $${qParams.length + 2}`;
     qParams.push(limit, offset);
 
-    const activities = await sql(query, qParams);
+    const activities = await sql(query as any, qParams);
 
     let countQuery = `SELECT COUNT(*) as count FROM audit_log WHERE record_id = $1`;
     const countParams: any[] = [clientId];
@@ -128,7 +128,7 @@ export async function GET(
       countParams.push(new Date(endDate).toISOString());
     }
 
-    const countResult = await sql(countQuery, countParams);
+    const countResult = await sql(countQuery as any, countParams);
     const total = parseInt(countResult[0]?.count || '0');
 
     return NextResponse.json({
@@ -199,7 +199,7 @@ export async function POST(
 
     query += ` ORDER BY timestamp DESC`;
 
-    const activities = await sql(query, qParams);
+    const activities = await sql(query as any, qParams);
 
     if (format === 'csv') {
       const csv = convertToCSV(activities as ActivityRow[]);
