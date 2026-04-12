@@ -2,6 +2,7 @@ import './globals.css'
 import '../styles/notifications.css'
 import type { Metadata } from 'next'
 import { ThemeProvider } from '../components/ThemeProvider'
+import { HapticProvider } from '@/context/HapticContext'
 
 export const metadata: Metadata = {
   title: 'Client Manager',
@@ -16,7 +17,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="bg-background text-foreground transition-colors duration-300">
-        <ThemeProvider>{children}</ThemeProvider>
+        <HapticProvider>
+          <ThemeProvider>{children}</ThemeProvider>
+        </HapticProvider>
       </body>
     </html>
   )

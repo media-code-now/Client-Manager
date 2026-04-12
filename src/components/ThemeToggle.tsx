@@ -9,7 +9,7 @@ type ThemeToggleProps = {
 };
 
 const buttonBase =
-  "rounded-full border border-white/60 bg-white/80 px-3 py-2 text-sm font-medium text-slate-700 shadow-lg shadow-slate-900/10 transition-all duration-150 ease-out hover:-translate-y-0.5 hover:bg-white active:translate-y-px dark:border-slate-700/60 dark:bg-slate-900/60 dark:text-slate-200 dark:shadow-slate-900/20 dark:hover:bg-slate-900";
+  "rounded-full border border-white/60 bg-white/80 px-3 py-2 text-sm font-medium text-slate-700 shadow-glass-sm transition-all duration-150 ease-out hover:-translate-y-0.5 hover:bg-white hover:shadow-interactive-sm active:translate-y-px dark:border-slate-700/60 dark:bg-slate-900/60 dark:text-slate-200 dark:shadow-dark-sm dark:hover:bg-slate-900";
 
 const classNames = (...classes: Array<string | false | null | undefined>) =>
   classes.filter(Boolean).join(" ");

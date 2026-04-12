@@ -83,7 +83,7 @@ const ClientDetail = ({ client, tasks, credentials, activity }: ClientDetailProp
   );
 
   return (
-    <section className="space-y-6 rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg shadow-slate-900/5 backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20">
+    <section className="space-y-6 rounded-3xl border border-white/60 bg-white/70 p-6 shadow-glass-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-dark-lg">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">{client.name}</h2>

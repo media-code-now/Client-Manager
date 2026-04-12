@@ -48,6 +48,7 @@ import {
 import { CheckCircleIcon } from "@heroicons/react/24/solid";
 import type { FC } from "react";
 import { useMemo, useState, useEffect } from "react";
+import { useHaptic } from "@/context/HapticContext";
 import { ThemeToggle } from "./ThemeToggle";
 import { useTheme } from "./ThemeProvider";
 import { getAccessToken, getAuthState } from "../utils/auth";
@@ -295,6 +296,7 @@ const iosMotion = {
 
 const DashboardLayout: FC = () => {
   const { theme, setTheme } = useTheme();
+  const haptic = useHaptic();
   const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [activeSection, setActiveSection] = useState<"overview" | "tasks" | "credentials" | "activity">(
     "overview"
@@ -335,6 +337,8 @@ const DashboardLayout: FC = () => {
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>("All Status");
   const [calendarSelectedDate, setCalendarSelectedDate] = useState(new Date());
   const [calendarViewMode, setCalendarViewMode] = useState<'month' | 'week' | 'day'>('month');
+  const [calendarSelectedDayForEvent, setCalendarSelectedDayForEvent] = useState<Date | null>(null);
+  const [calendarEventTypeToAdd, setCalendarEventTypeToAdd] = useState<'task' | 'project' | 'appointment' | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationFilter, setNotificationFilter] = useState<string>("All Types");
   const [projects, setProjects] = useState<Project[]>([]);
@@ -825,6 +829,15 @@ const DashboardLayout: FC = () => {
     { label: "Settings", icon: Cog6ToothIcon },
   ];
 
+  // Mobile-only bottom tab bar (5 buttons)
+  const mobileNavItems = [
+    { label: "Clients", icon: UserGroupIcon },
+    { label: "Projects", icon: RectangleStackIcon },
+    { label: "Tasks", icon: ClipboardDocumentListIcon },
+    { label: "Notes", icon: DocumentTextIcon },
+    { label: "Calendar", icon: CalendarIcon },
+  ];
+
   const selectedClient = useMemo<Client | undefined>(
     () => clients.find((client) => client.id === selectedClientId),
     [selectedClientId, clients]
@@ -898,7 +911,10 @@ const DashboardLayout: FC = () => {
             </p>
           </div>
           <button 
-            onClick={() => setShowAddClientModal(true)}
+            onClick={() => {
+              haptic.triggerMedium();
+              setShowAddClientModal(true);
+            }}
             className="rounded-2xl bg-blue-600 px-6 py-3 text-sm font-medium text-white shadow-lg shadow-blue-600/25 transition-all hover:bg-blue-700 hover:shadow-blue-600/40 dark:bg-blue-500 dark:hover:bg-blue-600"
           >
             + Add New Client
@@ -910,11 +926,11 @@ const DashboardLayout: FC = () => {
           <input
             type="search"
             placeholder="Search clients by name, company, or tags..."
-            className="w-full rounded-2xl border border-white/60 bg-white/80 px-4 py-3 text-sm shadow-inner shadow-white/40 backdrop-blur-md placeholder:text-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200/60 dark:border-slate-700/60 dark:bg-slate-900/80 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-400 dark:focus:ring-blue-400/30"
+            className="w-full rounded-2xl border border-white/60 bg-white/80 px-4 py-3 text-sm shadow-inset-md backdrop-blur-md placeholder:text-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200/60 dark:border-slate-700/60 dark:bg-slate-900/80 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-400 dark:focus:ring-blue-400/30"
           />
         </div>
         <div className="flex gap-2">
-          <select className="rounded-2xl border border-white/60 bg-white/80 px-4 py-3 text-sm shadow-inner shadow-white/40 backdrop-blur-md focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200/60 dark:border-slate-700/60 dark:bg-slate-900/80 dark:text-slate-100 dark:focus:border-blue-400 dark:focus:ring-blue-400/30">
+          <select className="rounded-2xl border border-white/60 bg-white/80 px-4 py-3 text-sm shadow-inset-md backdrop-blur-md focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200/60 dark:border-slate-700/60 dark:bg-slate-900/80 dark:text-slate-100 dark:focus:border-blue-400 dark:focus:ring-blue-400/30">
             <option>All Status</option>
             <option>Active</option>
             <option>On hold</option>
@@ -936,10 +952,11 @@ const DashboardLayout: FC = () => {
           <div
             key={client.id}
             onClick={() => {
+              haptic.triggerSelection();
               setSelectedClientId(client.id);
               setClientView('detail');
             }}
-            className="group cursor-pointer rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg shadow-slate-900/5 backdrop-blur-md transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-900/10 dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20 dark:hover:shadow-slate-950/30"
+            className="group cursor-pointer rounded-3xl border border-white/60 bg-white/70 p-6 shadow-glass-md backdrop-blur-md transition-all hover:-translate-y-1 hover:shadow-glass-lg dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-dark-md dark:hover:shadow-dark-lg"
           >
             <div className="flex items-start justify-between">
               <div className="flex-1">
@@ -2254,9 +2271,22 @@ const DashboardLayout: FC = () => {
                         {client?.name || 'Unknown Client'}
                       </p>
                     </div>
-                    <span className={`text-xs font-bold ${getPriorityColor(project.priority)}`}>
-                      {project.priority}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-bold ${getPriorityColor(project.priority)}`}>
+                        {project.priority}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          haptic.triggerSelection();
+                          setProjects(projects.filter(p => p.id !== project.id));
+                        }}
+                        className="rounded-lg p-2 text-slate-400 transition-all hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+                        title="Delete project"
+                      >
+                        <TrashIcon className="h-5 w-5" />
+                      </button>
+                    </div>
                   </div>
 
                   <p className="mb-4 line-clamp-2 text-sm text-slate-600 dark:text-slate-400">
@@ -2790,6 +2820,16 @@ const DashboardLayout: FC = () => {
                           Mark Done
                         </button>
                       )}
+                      <button
+                        onClick={() => {
+                          haptic.triggerSelection();
+                          setTasks(tasks.filter(t => t.id !== task.id));
+                        }}
+                        className="rounded-2xl bg-red-600/10 px-4 py-2 text-sm font-medium text-red-600 shadow-inner shadow-red-200/20 transition-all hover:bg-red-600/20 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20"
+                        title="Delete task"
+                      >
+                        Delete
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -4298,20 +4338,38 @@ const DashboardLayout: FC = () => {
                 
                 const tasksForDay = getTasksForDate(day);
                 const isCurrentDay = isToday(day);
+                const selectedDay = calendarSelectedDayForEvent ? (
+                  calendarSelectedDayForEvent.getDate() === day &&
+                  calendarSelectedDayForEvent.getMonth() === currentMonth &&
+                  calendarSelectedDayForEvent.getFullYear() === currentYear
+                ) : false;
                 
                 return (
                   <div
                     key={day}
-                    className={`aspect-square rounded-xl p-2 transition-all cursor-pointer ${
-                      isCurrentDay
-                        ? 'bg-blue-500 text-white shadow-lg'
+                    onClick={() => {
+                      const selectedDate = new Date(currentYear, currentMonth, day);
+                      setCalendarSelectedDayForEvent(selectedDate);
+                      haptic.triggerLight();
+                    }}
+                    className={`aspect-square rounded-xl p-2 transition-all cursor-pointer border-2 ${
+                      selectedDay
+                        ? 'border-blue-600 bg-blue-50 dark:border-blue-400 dark:bg-blue-950/30'
+                        : isCurrentDay
+                        ? 'border-blue-500 bg-blue-500 text-white shadow-lg'
                         : tasksForDay.length > 0
-                        ? 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700'
-                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                        ? 'border-transparent bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700'
+                        : 'border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/50'
                     }`}
                   >
                     <div className="flex flex-col h-full">
-                      <span className={`text-sm font-medium ${isCurrentDay ? 'text-white' : 'text-slate-900 dark:text-slate-100'}`}>
+                      <span className={`text-sm font-medium ${
+                        selectedDay 
+                          ? 'text-blue-600 dark:text-blue-300' 
+                          : isCurrentDay 
+                          ? 'text-white' 
+                          : 'text-slate-900 dark:text-slate-100'
+                      }`}>
                         {day}
                       </span>
                       {tasksForDay.length > 0 && (
@@ -4346,12 +4404,92 @@ const DashboardLayout: FC = () => {
             </div>
           </div>
 
-          {/* Upcoming Deadlines Sidebar */}
+          {/* Sidebar - Day Details or Upcoming Deadlines */}
           <div className="space-y-4">
-            <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60">
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
-                Upcoming Deadlines
-              </h3>
+            {calendarSelectedDayForEvent ? (
+              <>
+                {/* Day Detail Panel */}
+                <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">Selected Day</p>
+                      <h3 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+                        {calendarSelectedDayForEvent.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                      </h3>
+                    </div>
+                    <button
+                      onClick={() => setCalendarSelectedDayForEvent(null)}
+                      className="rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    >
+                      <XMarkIcon className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                  {/* Add Event Options */}
+                  <div className="space-y-2 mb-6">
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Add to this day:</p>
+                    <div className="grid grid-cols-1 gap-2">
+                      <button
+                        onClick={() => {
+                          setTaskCreationContext("tasks");
+                          setSelectedDueDate(calendarSelectedDayForEvent.toISOString().split('T')[0]);
+                          setShowCalendar(false);
+                          setShowAddTaskModal(true);
+                          haptic.triggerLight();
+                        }}
+                        className="flex items-center gap-2 rounded-xl border border-white/60 bg-white/50 p-3 text-left text-sm font-medium text-blue-600 transition-all hover:bg-white dark:border-slate-700/60 dark:bg-slate-800/50 dark:text-blue-400 dark:hover:bg-slate-800"
+                      >
+                        <ClipboardDocumentListIcon className="h-4 w-4" />
+                        New Task
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowAddProjectModal(true);
+                          haptic.triggerLight();
+                        }}
+                        className="flex items-center gap-2 rounded-xl border border-white/60 bg-white/50 p-3 text-left text-sm font-medium text-purple-600 transition-all hover:bg-white dark:border-slate-700/60 dark:bg-slate-800/50 dark:text-purple-400 dark:hover:bg-slate-800"
+                      >
+                        <RectangleStackIcon className="h-4 w-4" />
+                        New Project
+                      </button>
+                      <button
+                        onClick={() => {
+                          haptic.triggerLight();
+                          alert('Appointments feature coming soon!');
+                        }}
+                        className="flex items-center gap-2 rounded-xl border border-white/60 bg-white/50 p-3 text-left text-sm font-medium text-amber-600 transition-all hover:bg-white dark:border-slate-700/60 dark:bg-slate-800/50 dark:text-amber-400 dark:hover:bg-slate-800"
+                      >
+                        <CalendarIcon className="h-4 w-4" />
+                        New Appointment
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Events for this day */}
+                  <div className="border-t border-white/60 pt-4 dark:border-slate-700/60">
+                    <p className="mb-3 text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Tasks on this day
+                    </p>
+                    {getTasksForDate(calendarSelectedDayForEvent.getDate()).length === 0 ? (
+                      <p className="text-sm text-slate-500 dark:text-slate-400">No tasks scheduled</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {getTasksForDate(calendarSelectedDayForEvent.getDate()).map(task => (
+                          <div key={task.id} className="rounded-lg bg-slate-50/50 p-2 dark:bg-slate-800/50">
+                            <p className="text-xs font-medium text-slate-900 dark:text-slate-100">{task.title}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{task.status}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
+                  Upcoming Deadlines
+                </h3>
               <div className="space-y-3">
                 {upcomingDeadlines.length === 0 ? (
                   <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -4404,6 +4542,7 @@ const DashboardLayout: FC = () => {
                 )}
               </div>
             </div>
+            )}
 
             {/* Quick Stats */}
             <div className="rounded-3xl border border-white/60 bg-gradient-to-br from-blue-50 to-blue-100/50 p-6 shadow-lg dark:border-slate-800/60 dark:from-blue-950/30 dark:to-blue-900/20">
@@ -7565,11 +7704,14 @@ const DashboardLayout: FC = () => {
 
         <main className="flex flex-1 flex-col overflow-hidden">
           {/* Mobile Header with Hamburger Menu - Only visible on small screens */}
-          <header className="sticky top-0 z-30 border-b border-white/60 bg-white/70 px-4 py-3 backdrop-blur-md shadow-lg shadow-slate-900/5 dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20 md:hidden">
+          <header className="sticky top-0 z-30 border-b border-white/60 bg-white/70 px-4 py-3 pt-safe-top backdrop-blur-md shadow-glass-md dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-dark-md md:hidden">
             <div className="flex items-center justify-between">
               <button
                 type="button"
-                onClick={() => setShowMobileMenu(true)}
+                onClick={() => {
+                  haptic.triggerLight();
+                  setShowMobileMenu(true);
+                }}
                 className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/60 bg-white/80 shadow-md transition hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/70 dark:hover:bg-slate-800/70"
               >
                 <Bars3Icon className="h-6 w-6 text-slate-600 dark:text-slate-300" />
@@ -7581,83 +7723,10 @@ const DashboardLayout: FC = () => {
             </div>
           </header>
 
-          {/* Mobile Slide-out Navigation Drawer */}
-          {showMobileMenu && (
-            <>
-              {/* Backdrop */}
-              <div
-                className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
-                onClick={() => setShowMobileMenu(false)}
-              />
-              
-              {/* Drawer */}
-              <aside className="fixed left-0 top-0 z-50 h-full w-3/4 max-w-sm border-r border-white/60 bg-white/90 backdrop-blur-md shadow-2xl dark:border-slate-800/60 dark:bg-slate-900/90 md:hidden">
-                <div className="flex h-full flex-col">
-                  {/* Drawer Header */}
-                  <div className="flex items-center justify-between border-b border-white/60 px-6 py-4 dark:border-slate-800/60">
-                    <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                      Menu
-                    </h2>
-                    <button
-                      type="button"
-                      onClick={() => setShowMobileMenu(false)}
-                      className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/60 bg-white/80 shadow-md transition hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/70 dark:hover:bg-slate-800/70"
-                    >
-                      <XMarkIcon className="h-6 w-6 text-slate-600 dark:text-slate-300" />
-                    </button>
-                  </div>
-
-                  {/* Navigation Items */}
-                  <nav className="flex-1 overflow-y-auto px-4 py-6">
-                    <ul className="space-y-2">
-                      {navItems.map(({ label, icon: Icon }) => (
-                        <li key={label}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActiveNavItem(label);
-                              setShowMobileMenu(false);
-                            }}
-                            className={classNames(
-                              "group relative flex w-full items-center gap-4 rounded-xl px-4 py-3 text-left transition-all",
-                              activeNavItem === label
-                                ? "bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-slate-900 shadow-md shadow-slate-900/5 dark:from-blue-500/20 dark:to-purple-500/20 dark:text-slate-100"
-                                : "text-slate-600 hover:bg-white/50 dark:text-slate-400 dark:hover:bg-slate-800/50"
-                            )}
-                          >
-                            <Icon
-                              className={classNames(
-                                "h-6 w-6 transition-transform group-hover:scale-110",
-                                activeNavItem === label
-                                  ? "text-blue-600 dark:text-blue-400"
-                                  : "text-slate-500 dark:text-slate-400"
-                              )}
-                            />
-                            <span className="text-base font-medium">{label}</span>
-                            {activeNavItem === label && (
-                              <div className="ml-auto h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400" />
-                            )}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </nav>
-
-                  {/* Drawer Footer */}
-                  <div className="border-t border-white/60 px-6 py-4 dark:border-slate-800/60">
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Client Manager v1.0
-                    </p>
-                  </div>
-                </div>
-              </aside>
-            </>
-          )}
-
           {/* Desktop Header - Hidden on mobile */}
           <HeaderWithNotifications />
 
-          <div className="flex-1 overflow-y-auto px-4 pb-12 pt-6 md:px-8">
+          <div key={activeNavItem} className="flex-1 overflow-y-auto px-4 pb-24 pt-6 md:px-8 md:pb-12 animate-apple-fade">
             {activeNavItem === 'Clients' ? (
               clientView === 'detail' ? renderClientDetail() : renderClientManagement()
             ) : activeNavItem === 'Projects' ? (
@@ -7832,47 +7901,6 @@ const DashboardLayout: FC = () => {
                     </div>
                   </div>
                 </div>
-
-              {/* Mobile App Grid - Only visible on mobile */}
-              <div className="md:hidden">
-                <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60">
-                  <h2 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">
-                    Quick Access
-                  </h2>
-                  <div className="grid grid-cols-4 gap-4">
-                    {navItems.map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <button
-                          key={item.label}
-                          onClick={() => setActiveNavItem(item.label)}
-                          className="flex flex-col items-center gap-2 group"
-                        >
-                          <div className="relative">
-                            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-900/30 flex items-center justify-center transition-all duration-200 group-hover:scale-110 group-active:scale-95 dark:from-blue-600 dark:to-blue-700">
-                              <Icon className="h-7 w-7 text-white" />
-                            </div>
-                            {/* Notification badge for certain tabs */}
-                            {item.label === 'Notifications' && notifications.filter(n => !n.read).length > 0 && (
-                              <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-lg">
-                                {notifications.filter(n => !n.read).length}
-                              </div>
-                            )}
-                            {item.label === 'Tasks' && tasks.filter(t => t.status !== 'Done').length > 0 && (
-                              <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-lg">
-                                {tasks.filter(t => t.status !== 'Done').length}
-                              </div>
-                            )}
-                          </div>
-                          <span className="text-[10px] font-medium text-slate-700 dark:text-slate-300 text-center leading-tight">
-                            {item.label}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
 
               {/* Quick Actions Section */}
               <section className="space-y-4">
@@ -8055,27 +8083,102 @@ const DashboardLayout: FC = () => {
         </main>
       </div>
 
-      {/* Bottom Navigation - Hidden on all screen sizes since we have app grid on mobile */}
-      <nav className="hidden">
-        {navItems.map(({ label, icon: Icon }) => (
+      {/* Mobile Slide-out Navigation Drawer - Outside of main to avoid overflow:hidden constraint */}
+      {showMobileMenu && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
+            onClick={() => setShowMobileMenu(false)}
+          />
+          
+          {/* Drawer */}
+          <aside className="fixed left-0 top-0 z-50 h-full w-3/4 max-w-sm border-r border-white/60 bg-white/90 backdrop-blur-md shadow-2xl dark:border-slate-800/60 dark:bg-slate-900/90 md:hidden">
+            <div className="flex h-full flex-col">
+              {/* Drawer Header */}
+              <div className="flex items-center justify-between border-b border-white/60 px-6 py-4 dark:border-slate-800/60">
+                <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+                  Menu
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setShowMobileMenu(false)}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/60 bg-white/80 shadow-md transition hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/70 dark:hover:bg-slate-800/70"
+                >
+                  <XMarkIcon className="h-6 w-6 text-slate-600 dark:text-slate-300" />
+                </button>
+              </div>
+
+              {/* Navigation Items */}
+              <nav className="flex-1 overflow-y-auto px-4 py-6">
+                <ul className="space-y-2">
+                  {navItems.map(({ label, icon: Icon }) => (
+                    <li key={label}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveNavItem(label);
+                          setShowMobileMenu(false);
+                        }}
+                        className={classNames(
+                          "group relative flex w-full items-center gap-4 rounded-xl px-4 py-3 text-left transition-all",
+                          activeNavItem === label
+                            ? "bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-slate-900 shadow-md shadow-slate-900/5 dark:from-blue-500/20 dark:to-purple-500/20 dark:text-slate-100"
+                            : "text-slate-600 hover:bg-white/50 dark:text-slate-400 dark:hover:bg-slate-800/50"
+                        )}
+                      >
+                        <Icon
+                          className={classNames(
+                            "h-6 w-6 transition-transform group-hover:scale-110",
+                            activeNavItem === label
+                              ? "text-blue-600 dark:text-blue-400"
+                              : "text-slate-500 dark:text-slate-400"
+                          )}
+                        />
+                        <span className="text-base font-medium">{label}</span>
+                        {activeNavItem === label && (
+                          <div className="ml-auto h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400" />
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+
+              {/* Drawer Footer */}
+              <div className="border-t border-white/60 px-6 py-4 dark:border-slate-800/60">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Client Manager v1.0
+                </p>
+              </div>
+            </div>
+          </aside>
+        </>
+      )}
+
+      {/* Bottom Tab Bar Navigation - Mobile only */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 flex h-20 items-center justify-between border-t border-white/60 bg-white/90 px-2 pb-safe-bottom backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/90 md:hidden">
+        {mobileNavItems.map(({ label, icon: Icon }) => (
           <button
             key={label}
             type="button"
             onClick={() => {
-              console.log('Bottom nav clicked:', label);
+              haptic.triggerSelection();
               setActiveNavItem(label);
             }}
             className={classNames(
-              "flex flex-1 items-center justify-center rounded-full px-3 py-2 text-sm font-medium transition",
-              iosMotion.hoverButton,
-              iosMotion.focusRing,
+              "group relative flex flex-1 flex-col items-center justify-center gap-1 rounded-xl py-2 transition-all",
               activeNavItem === label
-                ? "bg-white text-slate-900 shadow-lg shadow-slate-900/10 dark:bg-slate-900 dark:text-slate-100 dark:shadow-slate-950/30"
-                : "text-slate-500 hover:bg-white/80 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900/70 dark:hover:text-slate-100"
+                ? "text-blue-600 dark:text-blue-400"
+                : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
             )}
+            title={label}
           >
-            <Icon className="mr-2 h-5 w-5" />
-            <span>{label}</span>
+            <Icon className="h-6 w-6 transition-transform group-active:scale-90" />
+            <span className="text-xs font-medium">{label}</span>
+            {activeNavItem === label && (
+              <div className="absolute bottom-0 h-1 w-8 rounded-full bg-blue-600 dark:bg-blue-400" />
+            )}
           </button>
         ))}
       </nav>

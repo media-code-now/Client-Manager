@@ -175,7 +175,7 @@ export default function HeaderWithNotifications({ onNotificationCountChange }: H
   };
 
   return (
-    <header className="sticky top-0 z-20 border-b border-white/60 bg-white/70 px-4 py-4 backdrop-blur-md shadow-lg shadow-slate-900/5 dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-slate-950/20 hidden md:block md:px-8">
+    <header className="sticky top-0 z-20 border-b border-white/60 bg-white/70 px-4 py-4 pt-safe-top backdrop-blur-md shadow-glass-md dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-dark-md hidden md:block md:px-8">
       <div className="flex items-center gap-4 md:gap-6">
         {/* Search Bar */}
         <div className="flex flex-1 items-center rounded-full border border-white/60 bg-white/80 px-4 py-2 shadow-inner shadow-white/40 transition focus-within:border-white focus-within:ring-2 focus-within:ring-blue-200/60 focus-within:ring-offset-2 focus-within:ring-offset-white/70 dark:border-slate-700/60 dark:bg-slate-900/70 dark:shadow-slate-950/30 dark:focus-within:ring-offset-slate-900">
