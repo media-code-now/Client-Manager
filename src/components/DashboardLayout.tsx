@@ -88,6 +88,19 @@ type Task = {
   description?: string;
 };
 
+type Appointment = {
+  id: string;
+  clientId?: string;
+  title: string;
+  description?: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  location?: string;
+  attendees?: string[];
+  status: 'scheduled' | 'completed' | 'cancelled';
+};
+
 type Credential = {
   id: string;
   clientId: string;
@@ -339,6 +352,9 @@ const DashboardLayout: FC = () => {
   const [calendarViewMode, setCalendarViewMode] = useState<'month' | 'week' | 'day'>('month');
   const [calendarSelectedDayForEvent, setCalendarSelectedDayForEvent] = useState<Date | null>(null);
   const [calendarEventTypeToAdd, setCalendarEventTypeToAdd] = useState<'task' | 'project' | 'appointment' | null>(null);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [showAddAppointmentModal, setShowAddAppointmentModal] = useState<boolean>(false);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationFilter, setNotificationFilter] = useState<string>("All Types");
   const [projects, setProjects] = useState<Project[]>([]);
@@ -881,6 +897,132 @@ const DashboardLayout: FC = () => {
       return dateA.getTime() - dateB.getTime();
     });
   }, [tasks]);
+
+  // LocalStorage persistence for projects
+  useEffect(() => {
+    if (projects.length > 0) {
+      localStorage.setItem('dashboard_projects', JSON.stringify(projects));
+    }
+  }, [projects]);
+
+  useEffect(() => {
+    const savedProjects = localStorage.getItem('dashboard_projects');
+    if (savedProjects) {
+      try {
+        setProjects(JSON.parse(savedProjects));
+      } catch (e) {
+        console.error('Failed to load projects from localStorage:', e);
+      }
+    }
+  }, []);
+
+  // LocalStorage persistence for tasks
+  useEffect(() => {
+    if (tasks.length > 0) {
+      localStorage.setItem('dashboard_tasks', JSON.stringify(tasks));
+    }
+  }, [tasks]);
+
+  useEffect(() => {
+    const savedTasks = localStorage.getItem('dashboard_tasks');
+    if (savedTasks) {
+      try {
+        setTasks(JSON.parse(savedTasks));
+      } catch (e) {
+        console.error('Failed to load tasks from localStorage:', e);
+      }
+    }
+  }, []);
+
+  // LocalStorage persistence for appointments
+  useEffect(() => {
+    if (appointments.length > 0) {
+      localStorage.setItem('dashboard_appointments', JSON.stringify(appointments));
+    }
+  }, [appointments]);
+
+  useEffect(() => {
+    const savedAppointments = localStorage.getItem('dashboard_appointments');
+    if (savedAppointments) {
+      try {
+        setAppointments(JSON.parse(savedAppointments));
+      } catch (e) {
+        console.error('Failed to load appointments from localStorage:', e);
+      }
+    }
+  }, []);
+
+  // LocalStorage persistence for notes
+  useEffect(() => {
+    if (notes.length > 0) {
+      localStorage.setItem('dashboard_notes', JSON.stringify(notes));
+    }
+  }, [notes]);
+
+  useEffect(() => {
+    const savedNotes = localStorage.getItem('dashboard_notes');
+    if (savedNotes) {
+      try {
+        setNotes(JSON.parse(savedNotes));
+      } catch (e) {
+        console.error('Failed to load notes from localStorage:', e);
+      }
+    }
+  }, []);
+
+  // LocalStorage persistence for clients
+  useEffect(() => {
+    if (clients.length > 0) {
+      localStorage.setItem('dashboard_clients', JSON.stringify(clients));
+    }
+  }, [clients]);
+
+  useEffect(() => {
+    const savedClients = localStorage.getItem('dashboard_clients');
+    if (savedClients) {
+      try {
+        setClients(JSON.parse(savedClients));
+      } catch (e) {
+        console.error('Failed to load clients from localStorage:', e);
+      }
+    }
+  }, []);
+
+  // LocalStorage persistence for credentials
+  useEffect(() => {
+    if (credentials.length > 0) {
+      localStorage.setItem('dashboard_credentials', JSON.stringify(credentials));
+    }
+  }, [credentials]);
+
+  useEffect(() => {
+    const savedCredentials = localStorage.getItem('dashboard_credentials');
+    if (savedCredentials) {
+      try {
+        setCredentials(JSON.parse(savedCredentials));
+      } catch (e) {
+        console.error('Failed to load credentials from localStorage:', e);
+      }
+    }
+  }, []);
+
+  // LocalStorage persistence for invoices
+  useEffect(() => {
+    if (invoices.length > 0) {
+      localStorage.setItem('dashboard_invoices', JSON.stringify(invoices));
+    }
+  }, [invoices]);
+
+  useEffect(() => {
+    const savedInvoices = localStorage.getItem('dashboard_invoices');
+    if (savedInvoices) {
+      try {
+        setInvoices(JSON.parse(savedInvoices));
+      } catch (e) {
+        console.error('Failed to load invoices from localStorage:', e);
+      }
+    }
+  }, []);
 
   const todayLabel = (dateIso?: string) => {
     if (!dateIso) return "No due date";
@@ -4455,7 +4597,8 @@ const DashboardLayout: FC = () => {
                       <button
                         onClick={() => {
                           haptic.triggerLight();
-                          alert('Appointments feature coming soon!');
+                          setEditingAppointment(null);
+                          setShowAddAppointmentModal(true);
                         }}
                         className="flex items-center gap-2 rounded-xl border border-white/60 bg-white/50 p-3 text-left text-sm font-medium text-amber-600 transition-all hover:bg-white dark:border-slate-700/60 dark:bg-slate-800/50 dark:text-amber-400 dark:hover:bg-slate-800"
                       >
@@ -4478,6 +4621,28 @@ const DashboardLayout: FC = () => {
                           <div key={task.id} className="rounded-lg bg-slate-50/50 p-2 dark:bg-slate-800/50">
                             <p className="text-xs font-medium text-slate-900 dark:text-slate-100">{task.title}</p>
                             <p className="text-xs text-slate-500 dark:text-slate-400">{task.status}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Appointments for this day */}
+                  <div className="border-t border-white/60 pt-4 mt-4 dark:border-slate-700/60">
+                    <p className="mb-3 text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Appointments on this day
+                    </p>
+                    {appointments.filter(apt => apt.date === calendarSelectedDayForEvent?.toISOString().split('T')[0]).length === 0 ? (
+                      <p className="text-sm text-slate-500 dark:text-slate-400">No appointments scheduled</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {appointments.filter(apt => apt.date === calendarSelectedDayForEvent?.toISOString().split('T')[0]).map(apt => (
+                          <div key={apt.id} className="rounded-lg bg-amber-50/50 p-2 dark:bg-amber-900/20">
+                            <p className="text-xs font-medium text-slate-900 dark:text-slate-100">{apt.title}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{apt.startTime} - {apt.endTime}</p>
+                            {apt.location && (
+                              <p className="text-xs text-slate-500 dark:text-slate-400">📍 {apt.location}</p>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -7662,6 +7827,176 @@ const DashboardLayout: FC = () => {
     );
   };
 
+  const renderAddAppointmentModal = () => {
+    if (!showAddAppointmentModal) return null;
+
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      const formData = new FormData(e.currentTarget);
+      
+      const newAppointment: Appointment = {
+        id: editingAppointment?.id || `apt-${Date.now()}`,
+        clientId: formData.get('clientId') as string || undefined,
+        title: formData.get('title') as string,
+        description: formData.get('description') as string,
+        date: formData.get('date') as string,
+        startTime: formData.get('startTime') as string,
+        endTime: formData.get('endTime') as string,
+        location: formData.get('location') as string,
+        status: (formData.get('status') as any) || 'scheduled',
+      };
+
+      if (editingAppointment) {
+        setAppointments(appointments.map(a => a.id === editingAppointment.id ? newAppointment : a));
+      } else {
+        setAppointments([...appointments, newAppointment]);
+      }
+      
+      setShowAddAppointmentModal(false);
+      setEditingAppointment(null);
+      haptic.triggerSelection();
+    };
+
+    const appointmentDate = editingAppointment?.date || calendarSelectedDayForEvent?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0];
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+        <div className="w-full max-w-2xl rounded-3xl border border-white/60 bg-white/90 p-6 shadow-2xl backdrop-blur-xl dark:border-slate-800/60 dark:bg-slate-900/90">
+          <h2 className="mb-4 text-2xl font-bold text-slate-900 dark:text-slate-100">
+            {editingAppointment ? 'Edit Appointment' : 'Create New Appointment'}
+          </h2>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Title *
+                </label>
+                <input
+                  type="text"
+                  name="title"
+                  defaultValue={editingAppointment?.title || ''}
+                  required
+                  className="w-full rounded-xl border border-slate-300 bg-white/70 px-4 py-2 backdrop-blur-md dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-100"
+                  placeholder="e.g., Client Meeting"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Date *
+                </label>
+                <input
+                  type="date"
+                  name="date"
+                  defaultValue={appointmentDate}
+                  required
+                  className="w-full rounded-xl border border-slate-300 bg-white/70 px-4 py-2 backdrop-blur-md dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-100"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Start Time *
+                </label>
+                <input
+                  type="time"
+                  name="startTime"
+                  defaultValue={editingAppointment?.startTime || '09:00'}
+                  required
+                  className="w-full rounded-xl border border-slate-300 bg-white/70 px-4 py-2 backdrop-blur-md dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-100"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  End Time *
+                </label>
+                <input
+                  type="time"
+                  name="endTime"
+                  defaultValue={editingAppointment?.endTime || '10:00'}
+                  required
+                  className="w-full rounded-xl border border-slate-300 bg-white/70 px-4 py-2 backdrop-blur-md dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-100"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Location
+                </label>
+                <input
+                  type="text"
+                  name="location"
+                  defaultValue={editingAppointment?.location || ''}
+                  className="w-full rounded-xl border border-slate-300 bg-white/70 px-4 py-2 backdrop-blur-md dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-100"
+                  placeholder="e.g., Conference Room A"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Description
+                </label>
+                <textarea
+                  name="description"
+                  defaultValue={editingAppointment?.description || ''}
+                  className="w-full rounded-xl border border-slate-300 bg-white/70 px-4 py-2 backdrop-blur-md dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-100"
+                  placeholder="Add any additional details..."
+                  rows={3}
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Client
+                </label>
+                <select
+                  name="clientId"
+                  defaultValue={editingAppointment?.clientId || ''}
+                  className="w-full rounded-xl border border-slate-300 bg-white/70 px-4 py-2 backdrop-blur-md dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-100"
+                >
+                  <option value="">Select a client (optional)</option>
+                  {clients.map(client => (
+                    <option key={client.id} value={client.id}>
+                      {client.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Status
+                </label>
+                <select
+                  name="status"
+                  defaultValue={editingAppointment?.status || 'scheduled'}
+                  className="w-full rounded-xl border border-slate-300 bg-white/70 px-4 py-2 backdrop-blur-md dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-100"
+                >
+                  <option value="scheduled">Scheduled</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <button
+                type="submit"
+                className="flex-1 rounded-2xl bg-blue-600 px-6 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-600/25 transition-all hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+              >
+                {editingAppointment ? 'Update Appointment' : 'Create Appointment'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddAppointmentModal(false);
+                  setEditingAppointment(null);
+                }}
+                className="flex-1 rounded-2xl border border-white/60 bg-white/80 px-6 py-2.5 text-sm font-medium text-slate-700 transition-all hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:bg-slate-900"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-background text-slate-900 antialiased transition-colors duration-300 dark:bg-slate-950 dark:text-slate-100">
       <div className="flex h-screen flex-col md:flex-row">
@@ -8189,6 +8524,7 @@ const DashboardLayout: FC = () => {
       {renderEditTaskModal()}
       {renderChangePasswordModal()}
       {renderEmailSetupModal()}
+      {renderAddAppointmentModal()}
       
       {/* Email Composer Modal */}
       <EmailComposer
